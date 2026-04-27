@@ -121,10 +121,10 @@ const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('appBaseFontSize');
       if (saved) return Number(saved);
-      // Default to 14 (Small) on mobile, 18 (Large) on desktop
-      return typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 18;
+      // Default to 14 (Small) on mobile, 16 (Standard) on desktop
+      return typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 16;
     } catch (e) {
-      return 18;
+      return 16;
     }
   });
   const [showSuccess, setShowSuccess] = useState(false);
@@ -1603,7 +1603,7 @@ const App: React.FC = () => {
                           text: '#2d3748'
                         });
                         setFontFamily('"Manrope", sans-serif');
-                        setBaseFontSize(18);
+                        setBaseFontSize(16);
                         setTtsVoice('vi-VN-Standard-A');
                         setReduceEffects(false);
                       }}
