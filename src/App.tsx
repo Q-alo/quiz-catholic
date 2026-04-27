@@ -410,6 +410,7 @@ const App: React.FC = () => {
   );
 
   const questionTopRef = useRef<HTMLDivElement>(null);
+  const errorViewRef = useRef<HTMLDivElement>(null);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
 
   // Auto-scroll to evaluation
@@ -544,6 +545,9 @@ const App: React.FC = () => {
   const startSession = async () => {
     if (mode === 'old' && savedQuestions.length === 0) {
       setQuiz(prev => ({ ...prev, error: "Bạn chưa có câu hỏi nào trong kho 'Chưa biết'. Hãy chọn chế độ 'Câu hỏi mới' để bắt đầu." }));
+      setTimeout(() => {
+        errorViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
       return;
     }
 
@@ -737,6 +741,9 @@ const App: React.FC = () => {
     } catch (err: any) {
       setQuiz(prev => ({ ...prev, loading: false, error: formatApiError(err) }));
       setIsStarted(false);
+      setTimeout(() => {
+        errorViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
     }
   };
 
@@ -2301,7 +2308,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Saved Questions Lists */}
-          <section className="space-y-6">
+          <section className="space-y-6" ref={errorViewRef}>
             {quiz.error && (
               <p className="mb-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl border border-error/20">
                 <AlertCircle className="w-5 h-5" /> {quiz.error}
