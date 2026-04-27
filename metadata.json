@@ -1,0 +1,5 @@
+{
+  "name": "Ôn Tập Giáo Lý Xuân Lộc",
+  "description": "Ứng dụng ôn tập Giáo lý Công giáo với sự hỗ trợ của AI Gemini. Tạo câu hỏi mới dựa trên đề thi 2024, đánh giá tự luận và lưu trữ câu hỏi ôn tập.",
+  "requestFramePermissions": []
+}
