@@ -22,9 +22,17 @@ try {
   console.warn("Could not load firebase-applet-config.json, falling back to environment variables.", e);
 }
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+export let db: any = null;
+export let auth: any = null;
+let app: any = null;
+
+if (firebaseConfig && firebaseConfig.apiKey) {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  auth = getAuth(app);
+} else {
+  console.warn("Firebase configuration is missing or invalid (missing apiKey). Firebase services will not be initialized. Please set up Firebase.");
+}
 
 enum OperationType {
   CREATE = 'create',
@@ -74,6 +82,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 export async function testConnection() {
+  if (!db) return false;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;

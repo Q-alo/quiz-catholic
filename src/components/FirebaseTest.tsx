@@ -10,6 +10,10 @@ export function FirebaseTest() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
+    if (!auth) {
+      setStatus('Firebase chưa được cấu hình');
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, setUser);
     testConnection().then(works => {
       setStatus(works ? 'Kết nối Firebase thành công' : 'Lỗi kết nối Firebase');
