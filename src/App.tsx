@@ -29,7 +29,8 @@ import {
   Users,
   Database,
   Volume2,
-  VolumeX
+  VolumeX,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -2089,27 +2090,38 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <header className="absolute top-0 right-0 z-50 pointer-events-none w-full">
-        <div className="flex justify-end items-center px-4 py-4 gap-4 relative pointer-events-auto">
-          <div className="flex items-center gap-4 bg-surface/80 backdrop-blur-md py-2 px-6 rounded-full shadow-sm border border-outline-variant/20 mr-12">
-            <div className="flex items-center gap-2 text-primary">
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
-                {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <Users className="w-3 h-3 text-primary" />
-                )}
+      <header className="fixed top-0 left-0 w-full z-50 pointer-events-none">
+        <div className="relative w-full h-16 pointer-events-auto">
+          {/* User Bar - Chỉ hiển thị khi cấu hình (trang cài đặt) */}
+          {(!isStarted && !quiz.loading) && (
+            <div className="absolute top-0 right-12 md:right-16 inline-flex items-center gap-2 md:gap-4 bg-surface/80 backdrop-blur-md py-2 px-3 md:px-6 rounded-b-2xl shadow-sm border border-t-0 border-outline-variant/20">
+              <div className="flex items-center gap-2 text-primary">
+                <div className="w-8 h-8 md:w-6 md:h-6 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden shrink-0">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <Users className="w-4 h-4 md:w-3 md:h-3 text-primary" />
+                  )}
+                </div>
+                <span className="hidden md:inline text-sm font-bold truncate max-w-[150px]">{user?.displayName || user?.email?.split('@')[0]}</span>
               </div>
-              <span className="text-sm font-bold truncate max-w-[150px]">{user?.displayName || user?.email?.split('@')[0]}</span>
+              <div className="hidden md:block w-px h-4 bg-outline-variant/30"></div>
+              <button
+                 onClick={async () => { await logout(); }}
+                 className="hidden md:block text-xs text-error font-bold hover:underline whitespace-nowrap"
+              >
+                Đăng xuất
+              </button>
+              <button
+                 onClick={async () => { await logout(); }}
+                 className="md:hidden text-error hover:opacity-80 p-1.5 bg-error/10 rounded-full"
+                 title="Đăng xuất"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <div className="w-px h-4 bg-outline-variant/30"></div>
-            <button
-               onClick={async () => { await logout(); }}
-               className="text-xs text-error font-bold hover:underline"
-            >
-              Đăng xuất
-            </button>
-          </div>
+          )}
+          
           {/* Hidden Entry Button (Click to open hidden settings) */}
           <button
             onClick={() => setIsSettingsOpen(true)}
