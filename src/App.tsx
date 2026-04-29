@@ -506,8 +506,11 @@ const App: React.FC = () => {
     if (msg.includes('API_KEY_INVALID') || msg.includes('401') || msg.includes('unauthorized')) {
       return "Lỗi API: API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại trong phần Cài đặt.";
     }
-    if (msg.includes('429') || msg.includes('quota') || msg.includes('limit exceeded')) {
-      return "Lỗi API: Bạn đã hết hạn mức sử dụng miễn phí (Quota exceeded). Vui lòng thử lại sau vài phút.";
+    if (msg.includes('quota')) {
+      return "Lỗi API: Bạn đã hết hạn mức sử dụng (Quota exceeded). Vui lòng kiểm tra lại Google Cloud Console hoặc thử lại sau.";
+    }
+    if (msg.includes('429') || msg.includes('limit exceeded')) {
+      return "Lỗi API: Tần suất yêu cầu quá cao (Rate limit exceeded). Vui lòng đợi 1-2 phút rồi thử lại.";
     }
     if (msg.includes('403') || msg.includes('permission')) {
       return "Lỗi API: Bạn không có quyền truy cập vào Model này. Vui lòng kiểm tra lại quyền của API Key.";

@@ -1,7 +1,26 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer, setDoc } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+
+let firebaseConfig: any = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
+};
+
+try {
+  const configFiles = import.meta.glob('../../firebase-applet-config.json', { eager: true });
+  if (configFiles && configFiles['../../firebase-applet-config.json']) {
+    const loadedConfig = configFiles['../../firebase-applet-config.json'] as any;
+    firebaseConfig = loadedConfig.default || loadedConfig;
+  }
+} catch (e) {
+  console.warn("Could not load firebase-applet-config.json, falling back to environment variables.", e);
+}
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
