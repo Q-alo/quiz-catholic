@@ -132,7 +132,7 @@ export async function generateQuestions(
   onProgress?: (count: number) => void,
   onPartialQuestions?: (questions: Question[]) => void
 ): Promise<{ questions: Question[], successMessage: string }> {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-3.1-flash-lite-preview";
   
   const typeText = type === 'multiple-choice' 
     ? 'TRẮC NGHIỆM (có 4 lựa chọn A, B, C, D)' 
@@ -266,7 +266,7 @@ Yêu cầu:
 }
 
 export async function evaluateAllEssayAnswers(questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[]): Promise<{ score: number; feedback: string }[]> {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-3.1-flash-lite-preview";
   
   const prompt = `
 Dưới đây là danh sách các câu hỏi, đáp án mẫu và câu trả lời của người dùng:

@@ -34,6 +34,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
+import { FirebaseTest } from './components/FirebaseTest';
+import { IDB } from './services/idbStore';
 
 const TOPICS = [
   "Kinh Thánh Cựu Ước",
@@ -88,6 +90,7 @@ const getQuestionTextToRead = (q: Question, questionType: QuestionType) => {
 };
 
 const App: React.FC = () => {
+  const [isAppLoaded, setIsAppLoaded] = useState(false);
   const [contextContent, setContextContent] = useState<string>("");
   const [mode, setMode] = useState<'new' | 'old' | 'both'>('new');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([TOPICS[0], TOPICS[1]]);
@@ -95,14 +98,7 @@ const App: React.FC = () => {
   const [isCustomTopic, setIsCustomTopic] = useState(false);
   const [questionType, setQuestionType] = useState<QuestionType>('multiple-choice');
   const [questionCount, setQuestionCount] = useState<number>(5);
-  const [quizLevel, setQuizLevel] = useState<QuizLevel>(() => {
-    try {
-      const saved = localStorage.getItem('appLevel');
-      return (saved as QuizLevel) || 'Nghĩa Sỹ';
-    } catch (e) {
-      return 'Nghĩa Sỹ';
-    }
-  });
+  const [quizLevel, setQuizLevel] = useState<QuizLevel>('Nghĩa Sỹ');
   const [isStarted, setIsStarted] = useState(false);
   const wasStarted = useRef(false);
   
@@ -110,23 +106,8 @@ const App: React.FC = () => {
   const [isSavedQuestionsOpen, setIsSavedQuestionsOpen] = useState(false);
   const [isKnownQuestionsOpen, setIsKnownQuestionsOpen] = useState(false);
   const [selectedDetailQuestion, setSelectedDetailQuestion] = useState<Question | null>(null);
-  const [fontFamily, setFontFamily] = useState<string>(() => {
-    try {
-      return localStorage.getItem('appFont') || '"Manrope", sans-serif';
-    } catch (e) {
-      return '"Manrope", sans-serif';
-    }
-  });
-  const [baseFontSize, setBaseFontSize] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('appBaseFontSize');
-      if (saved) return Number(saved);
-      // Default to 14 (Small) on mobile, 16 (Standard) on desktop
-      return typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 16;
-    } catch (e) {
-      return 16;
-    }
-  });
+  const [fontFamily, setFontFamily] = useState<string>('"Manrope", sans-serif');
+  const [baseFontSize, setBaseFontSize] = useState<number>(typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 16);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [focusedEssayIndex, setFocusedEssayIndex] = useState<number | null>(null);
@@ -134,46 +115,24 @@ const App: React.FC = () => {
   const defaultProfile: Profile = {
     id: 'default',
     name: 'Mặc định',
-    allocatedBytes: 10 * 1024 * 1024
+    allocatedBytes: 40 * 1024 * 1024
   };
   
-  const [profiles, setProfiles] = useState<Profile[]>(() => {
-    try {
-      const saved = localStorage.getItem('appProfiles');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [defaultProfile];
-  });
+  const [profiles, setProfiles] = useState<Profile[]>([defaultProfile]);
   
-  const [currentProfileId, setCurrentProfileId] = useState<string>(() => {
-    return localStorage.getItem('currentProfileId') || 'default';
-  });
+  const [currentProfileId, setCurrentProfileId] = useState<string>('default');
   
   const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false);
   
-  const [theme, setTheme] = useState(() => {
-    const defaultTheme = {
+  const [theme, setTheme] = useState({
       primary: '#1a365d',
       secondary: '#b7914b',
       bg: '#fcfcf9',
       surface: '#ffffff',
       text: '#2d3748'
-    };
-    try {
-      const saved = localStorage.getItem('appTheme');
-      return saved ? JSON.parse(saved) : defaultTheme;
-    } catch (e) {
-      return defaultTheme;
-    }
   });
 
-  const [reduceEffects, setReduceEffects] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('appReduceEffects') === 'true';
-    } catch (e) {
-      return false;
-    }
-  });
+  const [reduceEffects, setReduceEffects] = useState<boolean>(false);
 
   const evaluationRef = useRef<HTMLDivElement>(null);
 
@@ -194,16 +153,14 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('reduce-effects');
     }
     
-    try {
-      localStorage.setItem('appTheme', JSON.stringify(theme));
-      localStorage.setItem('appFont', fontFamily);
-      localStorage.setItem('appBaseFontSize', String(baseFontSize));
-      localStorage.setItem('appLevel', quizLevel);
-      localStorage.setItem('appReduceEffects', String(reduceEffects));
-    } catch (e) {
-      console.error('Failed to save settings to localStorage', e);
+    if (isAppLoaded) {
+      IDB.setItem('appTheme', theme);
+      IDB.setItem('appFont', fontFamily);
+      IDB.setItem('appBaseFontSize', baseFontSize);
+      IDB.setItem('appLevel', quizLevel);
+      IDB.setItem('appReduceEffects', reduceEffects);
     }
-  }, [theme, fontFamily, baseFontSize, quizLevel, reduceEffects]);
+  }, [theme, fontFamily, baseFontSize, quizLevel, reduceEffects, isAppLoaded]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -286,16 +243,15 @@ const App: React.FC = () => {
 
   const [savedQuestions, setSavedQuestions] = useState<Question[]>([]); // "Chưa biết" questions (Unknown)
   const [knownQuestions, setKnownQuestions] = useState<Question[]>([]); // "Đã biết" questions (Known)
+  const [savedPage, setSavedPage] = useState(1);
+  const [knownPage, setKnownPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
   const [expandedExplanations, setExpandedExplanations] = useState<Record<number, boolean>>({});
 
-  const [isAutoTTS, setIsAutoTTS] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isAutoTTS');
-    return saved !== null ? JSON.parse(saved) : false;
-  });
-  const [ttsVoice, setTtsVoice] = useState<string>(() => {
-    const saved = localStorage.getItem('ttsVoice');
-    return saved || 'vi-VN-Standard-A';
-  });
+  const [isAutoTTS, setIsAutoTTS] = useState<boolean>(false);
+  const [ttsVoice, setTtsVoice] = useState<string>('vi-VN-Standard-A');
+  const [storageUsage, setStorageUsage] = useState({ used: '0 B', remaining: '40 MB', percentage: 0, isLow: false });
+  const [profileSizes, setProfileSizes] = useState<Record<string, number>>({});
   const [isSpeaking, setIsSpeaking] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -309,15 +265,15 @@ const App: React.FC = () => {
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
-    localStorage.setItem('isAutoTTS', JSON.stringify(isAutoTTS));
+    if (isAppLoaded) IDB.setItem('isAutoTTS', isAutoTTS);
     if (!isAutoTTS) {
       stopAudio();
     }
-  }, [isAutoTTS]);
+  }, [isAutoTTS, isAppLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('ttsVoice', ttsVoice);
-  }, [ttsVoice]);
+    if (isAppLoaded) IDB.setItem('ttsVoice', ttsVoice);
+  }, [ttsVoice, isAppLoaded]);
 
   const stopAudio = useCallback(() => {
     if (audioSourceRef.current) {
@@ -469,59 +425,79 @@ const App: React.FC = () => {
 
   // Listen to saved and known questions
   useEffect(() => {
-    const loadQuestions = () => {
-      const savedKey = currentProfileId === 'default' ? 'savedQuestions' : `savedQuestions_${currentProfileId}`;
-      const knownKey = currentProfileId === 'default' ? 'knownQuestions' : `knownQuestions_${currentProfileId}`;
-
-      const saved = localStorage.getItem(savedKey);
-      if (saved) {
-        try {
-          setSavedQuestions(JSON.parse(saved));
-        } catch (err) {
-          console.error("Failed to parse saved questions:", err);
-          setSavedQuestions([]);
+    const migrateAndInit = async () => {
+      if (!isAppLoaded) {
+        let migrated = true;
+        try { migrated = !!(await IDB.getItem('migrated_from_ls')); } catch {}
+        if (!migrated) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key !== 'migrated_from_ls') {
+              const val = localStorage.getItem(key);
+              if (val) {
+                try {
+                  await IDB.setItem(key, JSON.parse(val));
+                } catch {
+                  await IDB.setItem(key, val);
+                }
+              }
+            }
+          }
+          await IDB.setItem('migrated_from_ls', true);
         }
-      } else {
-        setSavedQuestions([]);
-      }
 
-      const known = localStorage.getItem(knownKey);
-      if (known) {
-        try {
-          setKnownQuestions(JSON.parse(known));
-        } catch (err) {
-          console.error("Failed to parse known questions:", err);
-          setKnownQuestions([]);
-        }
+        const p = await IDB.getItem<Profile[]>('appProfiles');
+        if (p) setProfiles(p);
+        const curP = await IDB.getItem<string>('currentProfileId');
+        if (curP) setCurrentProfileId(curP);
+
+        const lvl = await IDB.getItem<string>('appLevel');
+        if (lvl) setQuizLevel(lvl as QuizLevel);
+        const font = await IDB.getItem<string>('appFont');
+        if (font) setFontFamily(font);
+        const fSize = await IDB.getItem<number>('appBaseFontSize');
+        if (fSize) setBaseFontSize(Number(fSize));
+        const th = await IDB.getItem<any>('appTheme');
+        if (th) setTheme(th);
+        const fx = await IDB.getItem<any>('appReduceEffects');
+        if (fx) setReduceEffects(fx === true || fx === 'true');
+        const tts = await IDB.getItem<any>('isAutoTTS');
+        if (tts !== null) setIsAutoTTS(tts === true || String(tts) === 'true');
+        const v = await IDB.getItem<string>('ttsVoice');
+        if (v) setTtsVoice(v);
+        
+        setIsAppLoaded(true);
       } else {
-        setKnownQuestions([]);
+        const savedKey = currentProfileId === 'default' ? 'savedQuestions' : `savedQuestions_${currentProfileId}`;
+        const knownKey = currentProfileId === 'default' ? 'knownQuestions' : `knownQuestions_${currentProfileId}`;
+
+        const saved = await IDB.getItem<Question[]>(savedKey);
+        setSavedQuestions(saved || []);
+
+        const known = await IDB.getItem<Question[]>(knownKey);
+        setKnownQuestions(known || []);
       }
     };
-
-    loadQuestions();
-    
-    // Listen for storage changes in other tabs
-    window.addEventListener('storage', loadQuestions);
-    return () => window.removeEventListener('storage', loadQuestions);
-  }, [currentProfileId]);
+    migrateAndInit();
+  }, [currentProfileId, isAppLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('appProfiles', JSON.stringify(profiles));
-  }, [profiles]);
+    if (isAppLoaded) IDB.setItem('appProfiles', profiles);
+  }, [profiles, isAppLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('currentProfileId', currentProfileId);
-  }, [currentProfileId]);
+    if (isAppLoaded) IDB.setItem('currentProfileId', currentProfileId);
+  }, [currentProfileId, isAppLoaded]);
 
-  const saveToLocalStorage = (questions: Question[]) => {
+  const saveToLocalStorage = async (questions: Question[]) => {
     const key = currentProfileId === 'default' ? 'savedQuestions' : `savedQuestions_${currentProfileId}`;
-    localStorage.setItem(key, JSON.stringify(questions));
+    await IDB.setItem(key, questions);
     setSavedQuestions(questions);
   };
 
-  const saveKnownToLocalStorage = (questions: Question[]) => {
+  const saveKnownToLocalStorage = async (questions: Question[]) => {
     const key = currentProfileId === 'default' ? 'knownQuestions' : `knownQuestions_${currentProfileId}`;
-    localStorage.setItem(key, JSON.stringify(questions));
+    await IDB.setItem(key, questions);
     setKnownQuestions(questions);
   };
 
@@ -1123,35 +1099,33 @@ const App: React.FC = () => {
     return `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const getStorageUsage = () => {
-    const currentProfile = profiles.find(p => p.id === currentProfileId) || profiles[0];
-    const limitBytes = currentProfile.allocatedBytes;
-    const limitChars = limitBytes / 2;
-    
-    const savedKey = currentProfileId === 'default' ? 'savedQuestions' : `savedQuestions_${currentProfileId}`;
-    const knownKey = currentProfileId === 'default' ? 'knownQuestions' : `knownQuestions_${currentProfileId}`;
-    
-    const savedValue = localStorage.getItem(savedKey) || '';
-    const knownValue = localStorage.getItem(knownKey) || '';
-    
-    const usedChars = savedValue.length + knownValue.length + savedKey.length + knownKey.length;
-    const remainingChars = Math.max(0, limitChars - usedChars);
-    const percentage = Math.min(100, (usedChars / limitChars) * 100);
-
-    const formatSize = (chars: number) => {
-      const bytes = chars * 2; 
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  useEffect(() => {
+    const updateSize = async () => {
+      const currentProfile = profiles.find(p => p.id === currentProfileId) || profiles[0];
+      const limitBytes = currentProfile.allocatedBytes || (40 * 1024 * 1024);
+      
+      const str1 = JSON.stringify(savedQuestions);
+      const str2 = JSON.stringify(knownQuestions);
+      const usedBytes = (str1.length + str2.length) * 2;
+      
+      const remainingBytes = Math.max(0, limitBytes - usedBytes);
+      const percentage = Math.min(100, (usedBytes / limitBytes) * 100);
+      
+      const formatSize = (bytes: number) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+      };
+      
+      setStorageUsage({
+        used: formatSize(usedBytes),
+        remaining: formatSize(remainingBytes),
+        percentage: Number(percentage.toFixed(1)),
+        isLow: percentage > 85
+      });
     };
-
-    return {
-      used: formatSize(usedChars),
-      remaining: formatSize(remainingChars),
-      percentage: percentage.toFixed(1),
-      isLow: percentage > 85 // Báo động đỏ khi dung lượng chạm 85%
-    };
-  };
+    updateSize();
+  }, [savedQuestions, knownQuestions, currentProfileId, profiles]);
 
   const deleteKnownQuestion = (id: string) => {
     const newKnownQuestions = knownQuestions.filter(q => q.id !== id);
@@ -1216,15 +1190,30 @@ const App: React.FC = () => {
   };
 
   const getProfileUsedBytes = (profileId: string) => {
-    const savedKey = profileId === 'default' ? 'savedQuestions' : `savedQuestions_${profileId}`;
-    const knownKey = profileId === 'default' ? 'knownQuestions' : `knownQuestions_${profileId}`;
-    const savedValue = localStorage.getItem(savedKey) || '';
-    const knownValue = localStorage.getItem(knownKey) || '';
-    return (savedValue.length + knownValue.length + savedKey.length + knownKey.length) * 2;
+    return profileSizes[profileId] || 0;
   };
 
+  useEffect(() => {
+    const fetchSizes = async () => {
+      if (isProfileManagerOpen) {
+        const sizes: Record<string, number> = {};
+        for (const p of profiles) {
+          const savedKey = p.id === 'default' ? 'savedQuestions' : `savedQuestions_${p.id}`;
+          const knownKey = p.id === 'default' ? 'knownQuestions' : `knownQuestions_${p.id}`;
+          const savedList = await IDB.getItem<any>(savedKey);
+          const knownList = await IDB.getItem<any>(knownKey);
+          const s = JSON.stringify(savedList || []).length * 2;
+          const k = JSON.stringify(knownList || []).length * 2;
+          sizes[p.id] = s + k;
+        }
+        setProfileSizes(sizes);
+      }
+    };
+    fetchSizes();
+  }, [isProfileManagerOpen, profiles, currentProfileId]);
+
   const reallocateStorage = (currentProfiles: Profile[]) => {
-    const totalBytes = 10 * 1024 * 1024;
+    const totalBytes = 40 * 1024 * 1024;
     const bytesPerProfile = Math.floor(totalBytes / currentProfiles.length);
     return currentProfiles.map(p => ({ ...p, allocatedBytes: bytesPerProfile }));
   };
@@ -1240,15 +1229,15 @@ const App: React.FC = () => {
     setCurrentProfileId(newProfile.id);
   };
 
-  const deleteProfile = (id: string) => {
+  const deleteProfile = async (id: string) => {
     if (profiles.length <= 1) return;
     const newProfiles = reallocateStorage(profiles.filter(p => p.id !== id));
     setProfiles(newProfiles);
     if (currentProfileId === id) {
       setCurrentProfileId(newProfiles[0].id);
     }
-    localStorage.removeItem(`savedQuestions_${id}`);
-    localStorage.removeItem(`knownQuestions_${id}`);
+    await IDB.removeItem(`savedQuestions_${id}`);
+    await IDB.removeItem(`knownQuestions_${id}`);
   };
 
   const renameProfile = (id: string, newName: string) => {
@@ -1259,8 +1248,39 @@ const App: React.FC = () => {
     setProfiles(profiles.map(p => p.id === profileId ? { ...p, allocatedBytes: newAllocatedBytes } : p));
   };
 
-  const totalBytes = 10 * 1024 * 1024;
+  const totalBytes = 40 * 1024 * 1024;
   const unallocatedBytes = totalBytes - profiles.reduce((acc, p) => acc + p.allocatedBytes, 0);
+
+  const totalSavedPages = Math.ceil(savedQuestions.length / ITEMS_PER_PAGE) || 1;
+  const currentSavedQuestions = savedQuestions.slice(
+    (savedPage - 1) * ITEMS_PER_PAGE,
+    savedPage * ITEMS_PER_PAGE
+  );
+
+  const totalKnownPages = Math.ceil(knownQuestions.length / ITEMS_PER_PAGE) || 1;
+  const currentKnownQuestions = knownQuestions.slice(
+    (knownPage - 1) * ITEMS_PER_PAGE,
+    knownPage * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    if (savedPage > totalSavedPages) setSavedPage(totalSavedPages);
+  }, [savedQuestions.length, totalSavedPages, savedPage]);
+
+  useEffect(() => {
+    if (knownPage > totalKnownPages) setKnownPage(totalKnownPages);
+  }, [knownQuestions.length, totalKnownPages, knownPage]);
+
+  if (!isAppLoaded) {
+    return (
+      <div className="min-h-screen bg-[#fcfcf9] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 rounded-full border-4 border-[#1a365d] border-t-transparent animate-spin"></div>
+          <p className="text-[#1a365d] font-bold text-sm tracking-widest uppercase animate-pulse">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden text-on-surface p-4 md:p-8 transition-colors duration-300">
@@ -2359,7 +2379,7 @@ const App: React.FC = () => {
                           </div>
                         ) : (
                           <AnimatePresence initial={false}>
-                            {savedQuestions.map((q, index) => (
+                            {currentSavedQuestions.map((q, index) => (
                               <motion.div 
                                 layout
                                 initial={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0 }}
@@ -2406,6 +2426,23 @@ const App: React.FC = () => {
                               </motion.div>
                             ))}
                           </AnimatePresence>
+                        )}
+                        {savedQuestions.length > ITEMS_PER_PAGE && (
+                          <div className="flex flex-wrap justify-center gap-2 mt-4 pt-4 border-t border-outline-variant/30 pb-2">
+                            {Array.from({ length: totalSavedPages }, (_, i) => i + 1).map((page) => (
+                              <button
+                                key={page}
+                                onClick={(e) => { e.stopPropagation(); setSavedPage(page); }}
+                                className={`min-w-8 h-8 px-2 rounded-full text-[11px] font-bold transition-all border active:scale-95 ${
+                                  savedPage === page 
+                                    ? 'bg-orange-500 text-white border-orange-500 shadow-md transform scale-110' 
+                                    : 'bg-surface-container text-outline border-outline-variant/30 hover:bg-surface-container-high hover:text-on-surface hover:border-outline'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </motion.div>
@@ -2457,7 +2494,7 @@ const App: React.FC = () => {
                           </div>
                         ) : (
                           <AnimatePresence initial={false}>
-                            {knownQuestions.map((q, index) => (
+                            {currentKnownQuestions.map((q, index) => (
                               <motion.div 
                                 layout
                                 initial={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0 }}
@@ -2505,6 +2542,23 @@ const App: React.FC = () => {
                             ))}
                           </AnimatePresence>
                         )}
+                        {knownQuestions.length > ITEMS_PER_PAGE && (
+                          <div className="flex flex-wrap justify-center gap-2 mt-4 pt-4 border-t border-outline-variant/30 pb-2">
+                            {Array.from({ length: totalKnownPages }, (_, i) => i + 1).map((page) => (
+                              <button
+                                key={page}
+                                onClick={(e) => { e.stopPropagation(); setKnownPage(page); }}
+                                className={`min-w-8 h-8 px-2 rounded-full text-[11px] font-bold transition-all border active:scale-95 ${
+                                  knownPage === page 
+                                    ? 'bg-green-600 text-white border-green-600 shadow-md transform scale-110' 
+                                    : 'bg-surface-container text-outline border-outline-variant/30 hover:bg-surface-container-high hover:text-on-surface hover:border-outline'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -2520,22 +2574,22 @@ const App: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest font-bold text-outline group-hover:text-primary transition-colors">
                     <Database className="w-3 h-3" />
-                    Bộ nhớ - Local Storage ({profiles.find(p => p.id === currentProfileId)?.name})
+                    Bộ nhớ - IndexedDB ({profiles.find(p => p.id === currentProfileId)?.name})
                   </div>
-                  <span className={`text-[11px] font-bold ${getStorageUsage().isLow ? 'text-error' : 'text-outline group-hover:text-primary transition-colors'}`}>
-                    {getStorageUsage().percentage}%
+                  <span className={`text-[11px] font-bold ${storageUsage.isLow ? 'text-error' : 'text-outline group-hover:text-primary transition-colors'}`}>
+                    {storageUsage.percentage}%
                   </span>
                 </div>
                 <div className="h-1 w-full bg-surface-container-low/50 backdrop-blur-md rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
-                    animate={{ width: `${getStorageUsage().percentage}%` }}
-                    className={`h-full ${getStorageUsage().isLow ? 'bg-error' : 'bg-primary'}`}
+                    animate={{ width: `${storageUsage.percentage}%` }}
+                    className={`h-full ${storageUsage.isLow ? 'bg-error' : 'bg-primary'}`}
                   />
                 </div>
                 <div className="flex justify-between mt-2 text-[10px] text-outline italic group-hover:text-primary/70 transition-colors">
-                  <span>Đã dùng: {getStorageUsage().used}</span>
-                  <span>Còn trống: {getStorageUsage().remaining}</span>
+                  <span>Đã dùng: {storageUsage.used}</span>
+                  <span>Còn trống: {storageUsage.remaining}</span>
                 </div>
               </div>
             </div>
@@ -2999,6 +3053,7 @@ const App: React.FC = () => {
         <p className="text-sm font-bold text-primary opacity-60 tracking-widest uppercase">© 2026 Học viện Đức Tin — Giáo Phận Xuân Lộc</p>
         <p className="mt-2 text-xs text-secondary font-medium italic">Ứng dụng ôn tập Giáo Lý thông minh hỗ trợ bởi AI</p>
       </footer>
+      <FirebaseTest />
       </div>
     </div>
   );
