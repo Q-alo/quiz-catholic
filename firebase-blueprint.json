@@ -8,8 +8,24 @@
         "email": {
           "type": "string"
         },
-        "lastLogin": {
+        "lastLoginAt": {
           "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "backupData": {
+          "type": "string"
+        },
+        "storageUsedBytes": {
+          "type": "number"
+        },
+        "dailyGeminiCalls": {
+          "type": "number"
+        },
+        "recentApiTimestamps": {
+          "type": "array",
+          "items": { "type": "string" }
         }
       }
     }

@@ -22,14 +22,29 @@ service cloud.firestore {
       return true; 
     }
 
+    function isValidUser(data) {
+      return (
+                (!('email' in data) || data.email == null || data.email is string) &&
+                (!('lastLoginAt' in data) || data.lastLoginAt == null || data.lastLoginAt is string) &&
+                (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is string) &&
+                (!('backupData' in data) || data.backupData == null || data.backupData is string) &&
+                (!('storageUsedBytes' in data) || data.storageUsedBytes == null || data.storageUsedBytes is number) &&
+                (!('dailyGeminiCalls' in data) || data.dailyGeminiCalls == null || data.dailyGeminiCalls is number) &&
+                (!('recentApiTimestamps' in data) || data.recentApiTimestamps == null || data.recentApiTimestamps is list)
+             );
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn() && request.auth.uid == userId 
                     && isValidId(userId)
-                    && incoming().keys().hasAll(['email', 'lastLogin']) 
-                    && incoming().keys().size() == 2;
+                    && isValidUser(incoming());
       allow update: if isSignedIn() && request.auth.uid == userId
-                    && incoming().diff(resource.data).affectedKeys().hasOnly(['lastLogin']);
+                    && isValidUser(incoming())
+                    && incoming().diff(resource.data).affectedKeys().hasOnly([
+                      'email', 'lastLoginAt', 'backupData', 'updatedAt', 
+                      'storageUsedBytes', 'dailyGeminiCalls', 'recentApiTimestamps'
+                    ]);
     }
     
     match /test/connection {

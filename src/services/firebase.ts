@@ -139,13 +139,34 @@ export const logout = () => signOut(auth);
 export const syncToFirebase = async (uid: string, localData: any) => {
   if (!db) return;
   try {
-    await setDoc(doc(db, 'users', uid), {
-      backupData: JSON.stringify(localData),
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-    console.log("Synced to Firebase.");
+    const backupString = JSON.stringify(localData);
+    const storageUsedBytes = new Blob([backupString]).size;
+    const now = new Date().toISOString();
+
+    const payload: any = {
+      backupData: backupString,
+      updatedAt: now,
+      storageUsedBytes,
+    };
+
+    if (localData.apiUsage) {
+       payload.dailyGeminiCalls = localData.apiUsage.dailyGeminiCalls || 0;
+       payload.recentApiTimestamps = localData.apiUsage.recentApiTimestamps || [];
+    }
+
+    await setDoc(doc(db, 'users', uid), payload, { merge: true });
+    console.log(`Synced to Firebase. Bytes: ${storageUsedBytes}`);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${uid}`);
+  }
+};
+
+export const updateUserMetrics = async (uid: string, data: any) => {
+  if (!db) return;
+  try {
+    await setDoc(doc(db, 'users', uid), data, { merge: true });
+  } catch (error) {
+    console.error("Failed metrics update", error);
   }
 };
 

@@ -36,7 +36,7 @@ import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
 import { FirebaseTest } from './components/FirebaseTest';
 import { IDB } from './services/idbStore';
-import { auth, loginWithGoogle, logout, syncToFirebase, syncFromFirebase } from './services/firebase';
+import { auth, loginWithGoogle, logout, syncToFirebase, syncFromFirebase, updateUserMetrics } from './services/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 const TOPICS = [
@@ -435,6 +435,10 @@ const App: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        updateUserMetrics(u.uid, { 
+          lastLoginAt: new Date().toISOString(),
+          email: u.email
+        });
         // Sync IDB from Firebase when logging in if local state doesn't have profiles
         const localProfiles = await IDB.getItem<Profile[]>('appProfiles');
         const localSaved = await IDB.getItem<Question[]>('savedQuestions');
@@ -554,6 +558,30 @@ const App: React.FC = () => {
     return `Lỗi hệ thống: ${msg}`;
   };
 
+  const trackApiUsage = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const currentUsage: any = await IDB.getItem('apiUsage') || { dailyGeminiCalls: 0, lastReset: today, recentApiTimestamps: [] };
+      if (currentUsage.lastReset !== today) {
+         currentUsage.dailyGeminiCalls = 0;
+         currentUsage.lastReset = today;
+      }
+      currentUsage.dailyGeminiCalls += 1;
+      currentUsage.recentApiTimestamps.unshift(new Date().toISOString());
+      if (currentUsage.recentApiTimestamps.length > 5) {
+         currentUsage.recentApiTimestamps.length = 5;
+      }
+      await IDB.setItem('apiUsage', currentUsage);
+      
+      if (user) {
+         updateUserMetrics(user.uid, {
+            dailyGeminiCalls: currentUsage.dailyGeminiCalls,
+            recentApiTimestamps: currentUsage.recentApiTimestamps
+         });
+      }
+    } catch(e) { console.error(e); }
+  };
+
   const startSession = async () => {
     if (mode === 'old' && savedQuestions.length === 0) {
       setQuiz(prev => ({ ...prev, error: "Bạn chưa có câu hỏi nào trong kho 'Chưa biết'. Hãy chọn chế độ 'Câu hỏi mới' để bắt đầu." }));
@@ -614,6 +642,7 @@ const App: React.FC = () => {
         const oldQuestions = shuffled.slice(0, existingCount).map(q => ({ ...q, isNew: false }));
         
         const newCount = questionCount - existingCount;
+        await trackApiUsage();
         const result = await generateQuestions(
           topicToUse, 
           questionType, 
@@ -641,6 +670,7 @@ const App: React.FC = () => {
         
         initialQuestions = [...oldQuestions, ...newQuestions];
       } else if (mode === 'new') {
+        await trackApiUsage();
         const result = await generateQuestions(
           topicToUse, 
           questionType, 
@@ -987,6 +1017,7 @@ const App: React.FC = () => {
           correctAnswer: q.correctAnswer,
           userAnswer: quiz.userAnswers[i] || "Không trả lời"
         }));
+        await trackApiUsage();
         const results = await evaluateAllEssayAnswers(qaList);
         const newEvaluatedResults = results.map(r => r.score >= 5);
         setQuiz(prev => ({ 
@@ -1156,7 +1187,7 @@ const App: React.FC = () => {
       
       const str1 = JSON.stringify(savedQuestions);
       const str2 = JSON.stringify(knownQuestions);
-      const usedBytes = (str1.length + str2.length) * 2;
+      const usedBytes = new Blob([str1, str2]).size;
       
       const remainingBytes = Math.max(0, limitBytes - usedBytes);
       const percentage = Math.min(100, (usedBytes / limitBytes) * 100);
