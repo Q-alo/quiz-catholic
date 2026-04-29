@@ -50,7 +50,7 @@ let app: any = null;
 
 if (firebaseConfig && firebaseConfig.apiKey) {
   app = initializeApp(firebaseConfig);
-  db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  db = getFirestore(app, firebaseConfig.databaseId || firebaseConfig.firestoreDatabaseId || undefined);
   auth = getAuth(app);
 } else {
   console.warn("Firebase configuration is missing or invalid (missing apiKey). Firebase services will not be initialized. Please set up Firebase.");
@@ -134,3 +134,35 @@ export const loginWithGoogle = async () => {
 };
 
 export const logout = () => signOut(auth);
+
+// Backup all local data to Firebase
+export const syncToFirebase = async (uid: string, localData: any) => {
+  if (!db) return;
+  try {
+    await setDoc(doc(db, 'users', uid), {
+      backupData: JSON.stringify(localData),
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    console.log("Synced to Firebase.");
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${uid}`);
+  }
+};
+
+// Restore from Firebase
+export const syncFromFirebase = async (uid: string) => {
+  if (!db) return null;
+  try {
+    const d = await getDocFromServer(doc(db, 'users', uid));
+    if (d.exists()) {
+      const data = d.data();
+      if (data && data.backupData) {
+         return JSON.parse(data.backupData);
+      }
+    }
+    return null;
+  } catch (error) {
+    console.warn("Could not sync from Firebase", error);
+    return null;
+  }
+};
