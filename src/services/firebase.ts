@@ -12,6 +12,28 @@ let firebaseConfig: any = {
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
 };
 
+// Cố gắng đọc từ biến môi trường tổng VITE_FIREBASE_JSON nếu được cài đặt
+if (import.meta.env.VITE_FIREBASE_JSON) {
+  try {
+    const rawVal = import.meta.env.VITE_FIREBASE_JSON;
+    let parsed: any = {};
+    try {
+      // Thử parse chuẩn JSON trước
+      parsed = JSON.parse(rawVal);
+    } catch (err) {
+      // Nếu không chuẩn JSON (ví dụ có ngoặc kép đơn, thiếu ngoặc kép khoá...), dùng Regex để trích xuất
+      const regex = /([a-zA-Z0-9_]+)\s*:\s*["']([^"']+)["']/g;
+      let match;
+      while ((match = regex.exec(rawVal)) !== null) {
+        parsed[match[1]] = match[2];
+      }
+    }
+    firebaseConfig = { ...firebaseConfig, ...parsed };
+  } catch (e) {
+    console.error("Lỗi khi xử lý VITE_FIREBASE_JSON", e);
+  }
+}
+
 try {
   const configFiles = import.meta.glob('../../firebase-applet-config.json', { eager: true });
   if (configFiles && configFiles['../../firebase-applet-config.json']) {
