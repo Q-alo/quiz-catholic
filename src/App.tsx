@@ -1354,8 +1354,16 @@ const App: React.FC = () => {
             onClick={async () => {
               try {
                 await loginWithGoogle();
-              } catch(e) {
+              } catch(e: any) {
                 console.error(e);
+                if (e.code === 'auth/unauthorized-domain') {
+                  alert(`Lỗi: Tên miền này chưa được thêm vào danh sách Authorized domains trên Firebase. Vui lòng vào Firebase Console -> Authentication -> Settings -> Authorized domains và thêm tên miền hiện tại (${window.location.hostname}) vào danh sách.`);
+                } else if (e.code === 'auth/popup-closed-by-user') {
+                  // Ignore if user manually closed it
+                  console.log('Popup closed by user');
+                } else {
+                  alert(`Lỗi đăng nhập: ${e.message || 'Vui lòng thử lại.'}`);
+                }
               }
             }}
             className="w-full flex items-center justify-center gap-3 bg-surface-container hover:bg-surface-container-high text-on-surface py-4 px-6 rounded-2xl font-bold transition-all shadow-sm hover:shadow-md border border-outline-variant/30 active:scale-95"
