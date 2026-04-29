@@ -5,9 +5,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export async function generateSpeech(text: string, voiceName: string = 'vi-VN-Standard-A'): Promise<string | null> {
   try {
-    const googleTtsApiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
-    
+    let googleTtsApiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
+    // Remove any accidental quotes or whitespace
     if (googleTtsApiKey) {
+      googleTtsApiKey = googleTtsApiKey.replace(/^["']|["']$/g, '').trim();
+    }
+    
+    if (googleTtsApiKey && googleTtsApiKey.length > 5) {
       // Use Google Cloud Text-to-Speech API
       const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleTtsApiKey}`, {
         method: 'POST',
