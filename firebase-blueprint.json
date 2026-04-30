@@ -28,12 +28,25 @@
           "items": { "type": "string" }
         }
       }
+    },
+    "ApiUsageStats": {
+      "title": "API Usage Stats",
+      "description": "Global API usage tracking",
+      "type": "object",
+      "properties": {
+        "flash_lite": { "type": "number" },
+        "flash": { "type": "number" }
+      }
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": "User",
       "description": "User profile documents"
+    },
+    "stats/{docId}": {
+      "schema": "ApiUsageStats",
+      "description": "API Usage Stats documents"
     }
   }
 }

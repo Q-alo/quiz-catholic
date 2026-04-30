@@ -134,9 +134,10 @@ export async function generateQuestions(
   existingQuestions: Question[] = [],
   knownQuestions: Question[] = [],
   onProgress?: (count: number) => void,
-  onPartialQuestions?: (questions: Question[]) => void
+  onPartialQuestions?: (questions: Question[]) => void,
+  modelName: string = "gemini-3.1-flash-lite-preview"
 ): Promise<{ questions: Question[], successMessage: string }> {
-  const model = "gemini-3.1-flash-lite-preview";
+  const model = modelName;
   
   const typeText = type === 'multiple-choice' 
     ? 'TRẮC NGHIỆM (có 4 lựa chọn A, B, C, D)' 
@@ -269,8 +270,11 @@ Yêu cầu:
   };
 }
 
-export async function evaluateAllEssayAnswers(questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[]): Promise<{ score: number; feedback: string }[]> {
-  const model = "gemini-3.1-flash-lite-preview";
+export async function evaluateAllEssayAnswers(
+  questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[],
+  modelName: string = "gemini-3.1-flash-lite-preview"
+): Promise<{ score: number; feedback: string }[]> {
+  const model = modelName;
   
   const prompt = `
 Dưới đây là danh sách các câu hỏi, đáp án mẫu và câu trả lời của người dùng:

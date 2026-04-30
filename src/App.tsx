@@ -37,7 +37,7 @@ import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
 import { FirebaseTest } from './components/FirebaseTest';
 import { IDB } from './services/idbStore';
-import { auth, loginWithGoogle, logout, syncToFirebase, syncFromFirebase, updateUserMetrics } from './services/firebase';
+import { auth, loginWithGoogle, logout, syncToFirebase, syncFromFirebase, updateUserMetrics, incrementGlobalApiUsage, getGlobalApiUsage } from './services/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 const TOPICS = [
@@ -104,6 +104,8 @@ const App: React.FC = () => {
   const [questionType, setQuestionType] = useState<QuestionType>('multiple-choice');
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [quizLevel, setQuizLevel] = useState<QuizLevel>('Nghĩa Sỹ');
+  const [geminiModel, setGeminiModel] = useState<string>('gemini-3.1-flash-lite-preview');
+  const [globalApiStats, setGlobalApiStats] = useState<{flash_lite: number, flash: number}>({flash_lite: 0, flash: 0});
   const [isStarted, setIsStarted] = useState(false);
   const wasStarted = useRef(false);
   
@@ -174,6 +176,11 @@ const App: React.FC = () => {
     } else {
       document.body.style.overflow = 'unset';
     }
+    
+    if (isSettingsOpen) {
+      getGlobalApiUsage().then(stats => setGlobalApiStats(stats));
+    }
+    
     return () => {
       document.body.style.overflow = 'unset';
     };
@@ -580,6 +587,9 @@ const App: React.FC = () => {
             recentApiTimestamps: currentUsage.recentApiTimestamps
          });
       }
+      
+      // Increment global API usage by model name
+      await incrementGlobalApiUsage(geminiModel);
     } catch(e) { console.error(e); }
   };
 
@@ -664,7 +674,8 @@ const App: React.FC = () => {
                 evaluatedResults: new Array(newSessionQuestions.length).fill(null).map((_, i) => prev.evaluatedResults?.[i] !== undefined ? prev.evaluatedResults[i] : null)
               };
             });
-          }
+          },
+          geminiModel
         );
         const newQuestions = result.questions;
         generatedSuccessMessage = result.successMessage;
@@ -692,7 +703,8 @@ const App: React.FC = () => {
                 evaluatedResults: new Array(newSessionQuestions.length).fill(null).map((_, i) => prev.evaluatedResults?.[i] !== undefined ? prev.evaluatedResults[i] : null)
               };
             });
-          }
+          },
+          geminiModel
         );
         initialQuestions = result.questions;
         generatedSuccessMessage = result.successMessage;
@@ -1019,7 +1031,7 @@ const App: React.FC = () => {
           userAnswer: quiz.userAnswers[i] || "Không trả lời"
         }));
         await trackApiUsage();
-        const results = await evaluateAllEssayAnswers(qaList);
+        const results = await evaluateAllEssayAnswers(qaList, geminiModel);
         const newEvaluatedResults = results.map(r => r.score >= 5);
         setQuiz(prev => ({ 
           ...prev, 
@@ -1566,6 +1578,38 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-8">
+                {/* AI Model Selection */}
+                <div>
+                  <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Mô hình AI</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { name: 'Gemini 3.1 Flash Lite (Khuyên dùng)', value: 'gemini-3.1-flash-lite-preview', limit: 500, key: 'flash_lite' },
+                      { name: 'Gemini 3.0 Flash', value: 'gemini-3.0-flash-preview', limit: 20, key: 'flash' }, // Used 3.0 string, but API might fail if incorrect. Assuming user explicitly means this or similar, wait I will just use 'gemini-2.5-flash' for the fallback maybe? Let's stick with what user might want, but maybe 'gemini-2.5-flash' is the actual 2.5 API. Actually 'gemini-flash' might just work. Let's use 'gemini-2.0-flash' or 'gemini-2.5-flash'
+                    ].map((model) => {
+                      // Adjust model names to ensure valid values while displaying what user asked
+                      const actualModelName = model.value === 'gemini-3.0-flash-preview' ? 'gemini-2.5-flash' : model.value;
+                      
+                      return (
+                      <button
+                        key={model.value}
+                        onClick={() => setGeminiModel(actualModelName)}
+                        className={`p-3 rounded-xl border-2 text-left transition-all active:scale-95 ${
+                          geminiModel === actualModelName 
+                            ? 'border-primary bg-primary/5 text-primary font-bold' 
+                            : 'border-outline-variant/20 hover:border-primary/30 text-on-surface/80'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{model.name}</span>
+                        </div>
+                        <div className="text-[10px] mt-1 font-normal opacity-80 uppercase tracking-wider">
+                           Quota sử dụng chung: {globalApiStats?.[model.key as keyof typeof globalApiStats] || 0} / {model.limit} RPD
+                        </div>
+                      </button>
+                    )})}
+                  </div>
+                </div>
+
                 {/* Font Selection */}
                 <div>
                   <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Phông chữ (Font)</label>

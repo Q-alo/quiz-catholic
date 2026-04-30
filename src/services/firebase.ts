@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, setDoc, increment } from 'firebase/firestore';
 
 let firebaseConfig: any = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -168,6 +168,33 @@ export const updateUserMetrics = async (uid: string, data: any) => {
   } catch (error) {
     console.error("Failed metrics update", error);
   }
+};
+
+export const incrementGlobalApiUsage = async (model: string) => {
+  if (!db) return;
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const docRef = doc(db, 'stats', `apiUsage_${today}`);
+    const key = model === "gemini-3.1-flash-lite-preview" ? "flash_lite" : "flash";
+    await setDoc(docRef, { [key]: increment(1) }, { merge: true });
+  } catch (error) {
+    console.error("Error incrementing global API usage", error);
+  }
+};
+
+export const getGlobalApiUsage = async () => {
+  if (!db) return { flash_lite: 0, flash: 0 };
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const docRef = doc(db, 'stats', `apiUsage_${today}`);
+    const snap = await getDocFromServer(docRef);
+    if (snap.exists()) {
+      return snap.data();
+    }
+  } catch (error) {
+    console.error("Error getting global API usage", error);
+  }
+  return { flash_lite: 0, flash: 0 };
 };
 
 // Restore from Firebase
