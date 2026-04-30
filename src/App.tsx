@@ -131,25 +131,12 @@ const App: React.FC = () => {
   
   const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false);
   
-  const [theme, setTheme] = useState({
-      primary: '#1a365d',
-      secondary: '#b7914b',
-      bg: '#fcfcf9',
-      surface: '#ffffff',
-      text: '#2d3748'
-  });
-
   const [reduceEffects, setReduceEffects] = useState<boolean>(false);
 
   const evaluationRef = useRef<HTMLDivElement>(null);
 
-  // Apply theme, font, base font size and effects setting
+  // Apply font, base font size and effects setting
   useEffect(() => {
-    document.documentElement.style.setProperty('--color-primary', theme.primary);
-    document.documentElement.style.setProperty('--color-secondary', theme.secondary);
-    document.documentElement.style.setProperty('--color-background', theme.bg);
-    document.documentElement.style.setProperty('--color-surface-container-lowest', theme.surface);
-    document.documentElement.style.setProperty('--color-on-surface', theme.text);
     document.documentElement.style.setProperty('--font-body', fontFamily);
     document.documentElement.style.setProperty('--font-headline', fontFamily);
     document.documentElement.style.fontSize = `${baseFontSize}px`;
@@ -161,13 +148,12 @@ const App: React.FC = () => {
     }
     
     if (isAppLoaded) {
-      IDB.setItem('appTheme', theme);
       IDB.setItem('appFont', fontFamily);
       IDB.setItem('appBaseFontSize', baseFontSize);
       IDB.setItem('appLevel', quizLevel);
       IDB.setItem('appReduceEffects', reduceEffects);
     }
-  }, [theme, fontFamily, baseFontSize, quizLevel, reduceEffects, isAppLoaded]);
+  }, [fontFamily, baseFontSize, quizLevel, reduceEffects, isAppLoaded]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -502,8 +488,6 @@ const App: React.FC = () => {
         if (font) setFontFamily(font);
         const fSize = await IDB.getItem<number>('appBaseFontSize');
         if (fSize) setBaseFontSize(Number(fSize));
-        const th = await IDB.getItem<any>('appTheme');
-        if (th) setTheme(th);
         const fx = await IDB.getItem<any>('appReduceEffects');
         if (fx) setReduceEffects(fx === true || fx === 'true');
         const tts = await IDB.getItem<any>('isAutoTTS');
@@ -1367,10 +1351,10 @@ const App: React.FC = () => {
 
   if (isCheckingAuth || !isAppLoaded) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 transition-colors duration-300" style={{ backgroundColor: theme.bg }}>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 transition-colors duration-300">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: theme.primary, borderTopColor: 'transparent' }}></div>
-          <p className="font-bold text-sm tracking-widest uppercase animate-pulse" style={{ color: theme.primary }}>Đang tải...</p>
+          <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+          <p className="font-bold text-sm tracking-widest uppercase text-primary animate-pulse">Đang tải...</p>
         </div>
       </div>
     );
@@ -1378,7 +1362,7 @@ const App: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-300" style={{ backgroundColor: theme.bg }}>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-300">
          {!reduceEffects && (
           <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-40 mix-blend-multiply dark:mix-blend-screen transition-opacity duration-500">
             <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/40 rounded-full filter blur-[100px] animate-blob"></div>
@@ -1567,7 +1551,7 @@ const App: React.FC = () => {
               >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
-                  <Settings className="w-6 h-6" /> Cài đặt giao diện
+                  <Settings className="w-6 h-6" /> Cài đặt & Trạng thái lỗi
                 </h2>
                 <button 
                   onClick={() => setIsSettingsOpen(false)}
@@ -1661,9 +1645,9 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Theme Options */}
+                {/* Audio and Effects Controls */}
                 <div>
-                  <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Giao diện (Đồ họa)</label>
+                  <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Hệ thống</label>
                   <label className="group flex flex-col gap-2 p-4 rounded-xl glass-panel cursor-pointer active:scale-[0.98] transition-all border border-outline-variant/20 hover:border-primary/30 mb-4">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm block">Giảm thiểu hiệu ứng</span>
@@ -1723,87 +1707,10 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Theme Selection */}
+                {/* Reset defaults */}
                 <div>
-                  <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Tuỳ chỉnh màu sắc (Theme)</label>
-                  
-                  {/* Preset Themes */}
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    {[
-                        // TÔNG XANH DƯƠNG (Mặc định giữ nguyên phong cách phối)
-                      { name: 'Mặc định', colors: { primary: '#1a365d', secondary: '#b7914b', bg: '#fcfcf9', surface: '#ffffff', text: '#2d3748' } },
-                      { name: 'Đại dương', colors: { primary: '#2b6cb0', secondary: '#319795', bg: '#ebf8ff', surface: '#ffffff', text: '#2a4365' } },
-                      { name: 'Mây Trời', colors: { primary: '#0284c7', secondary: '#38bdf8', bg: '#f0f9ff', surface: '#ffffff', text: '#0c4a6e' } },
-
-                      // TÔNG XANH LÁ & TEAL
-                      { name: 'Bạc Hà', colors: { primary: '#0d9488', secondary: '#5eead4', bg: '#f0fdfa', surface: '#ffffff', text: '#134e4a' } },
-                      { name: 'Chanh Sả', colors: { primary: '#059669', secondary: '#f59e0b', bg: '#ecfdf5', surface: '#ffffff', text: '#064e3b' } },
-                      { name: 'Rừng xanh', colors: { primary: '#2f855a', secondary: '#975a16', bg: '#f0fff4', surface: '#ffffff', text: '#22543d' } },
-
-                      // TÔNG VÀNG & CAM
-                      { name: 'Cổ điển', colors: { primary: '#744210', secondary: '#d69e2e', bg: '#fefcbf', surface: '#ffffff', text: '#5f370e' } },
-                      { name: 'Mùa thu', colors: { primary: '#9c4221', secondary: '#d97706', bg: '#fffaf0', surface: '#ffffff', text: '#451a03' } },
-                      { name: 'Bình Minh', colors: { primary: '#ea580c', secondary: '#fbbf24', bg: '#fffbeb', surface: '#ffffff', text: '#7c2d12' } },
-
-                      // TÔNG ĐỎ & HỒNG
-                      { name: 'Hoàng hôn', colors: { primary: '#c53030', secondary: '#dd6b20', bg: '#fff5f5', surface: '#ffffff', text: '#742a2a' } },
-                      { name: 'Hoa anh đào', colors: { primary: '#b83280', secondary: '#f687b3', bg: '#fff5f7', surface: '#ffffff', text: '#702459' } },
-
-                      // TÔNG TÍM
-                      { name: 'Kẹo Ngọt', colors: { primary: '#7c3aed', secondary: '#ec4899', bg: '#fdf2f8', surface: '#ffffff', text: '#4c1d95' } },
-                      { name: 'Oải hương', colors: { primary: '#553c9a', secondary: '#b794f4', bg: '#f9f5ff', surface: '#ffffff', text: '#44337a' } },
-
-                      // THEME ĐẶC BIỆT
-                      { name: 'Hố Đen', colors: { primary: '#6366f1', secondary: '#14b8a6', bg: '#0f172a', surface: '#1e293b', text: '#f1f5f9' } },                    
-                      
-                      ].map((preset, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setTheme(preset.colors)}
-                        title={preset.name}
-                        className={`w-10 h-10 rounded-full border-2 shadow-sm hover:scale-110 active:scale-95 transition-transform ${
-                          theme.primary === preset.colors.primary ? 'border-secondary scale-110' : 'border-white'
-                        }`}
-                        style={{ backgroundColor: preset.colors.primary }}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="space-y-3">
-                    {[
-                      { key: 'primary', label: 'Màu chính (Primary)' },
-                      { key: 'secondary', label: 'Màu phụ (Secondary)' },
-                      { key: 'bg', label: 'Màu nền (Background)' },
-                      { key: 'surface', label: 'Màu thẻ (Surface)' },
-                      { key: 'text', label: 'Màu chữ (Text)' },
-                    ].map(color => (
-                      <div key={color.key} className="flex items-center justify-between bg-surface-container-low/50 backdrop-blur-md border border-outline-variant/20 rounded-xl p-3">
-                        <span className="text-sm font-medium text-primary">{color.label}</span>
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="text" 
-                            value={theme[color.key as keyof typeof theme]}
-                            onChange={(e) => setTheme(prev => ({ ...prev, [color.key]: e.target.value }))}
-                            className="w-24 text-sm p-1.5 border border-outline-variant/30 rounded-lg uppercase text-center glass-panel text-on-surface"
-                          />
-                          <input 
-                            type="color" 
-                            value={theme[color.key as keyof typeof theme]}
-                            onChange={(e) => setTheme(prev => ({ ...prev, [color.key]: e.target.value }))}
-                            className="w-8 h-8 rounded cursor-pointer border-0 p-0"
-                          />
-                        </div>
-                      </div>
-                    ))}
                     <button 
                       onClick={() => {
-                        setTheme({
-                          primary: '#1a365d',
-                          secondary: '#b7914b',
-                          bg: '#fcfcf9',
-                          surface: '#ffffff',
-                          text: '#2d3748'
-                        });
                         setFontFamily('"Manrope", sans-serif');
                         setBaseFontSize(16);
                         setTtsVoice('vi-VN-Standard-A');
@@ -1813,7 +1720,12 @@ const App: React.FC = () => {
                     >
                       Khôi phục mặc định
                     </button>
-                  </div>
+                </div>
+                
+                {/* Firebase Connection Test */}
+                <div>
+                   <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block mt-6">Firebase Test</label>
+                   <FirebaseTest />
                 </div>
               </div>
             </motion.div>
@@ -3256,7 +3168,6 @@ const App: React.FC = () => {
         <p className="text-sm font-bold text-primary opacity-60 tracking-widest uppercase">© 2026 Học viện Đức Tin — Giáo Phận Xuân Lộc</p>
         <p className="mt-2 text-xs text-secondary font-medium italic">Ứng dụng ôn tập Giáo Lý thông minh hỗ trợ bởi AI</p>
       </footer>
-      <FirebaseTest />
       </div>
     </div>
   );
