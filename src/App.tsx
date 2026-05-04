@@ -426,6 +426,25 @@ const App: React.FC = () => {
       setIsCheckingAuth(false);
       return;
     }
+
+    const checkAndSyncData = async (u: User) => {
+      // Sync IDB from Firebase when logging in or opening app
+      const firebaseData = await syncFromFirebase(u.uid);
+      if (firebaseData && Object.keys(firebaseData).length > 0) {
+        let hasDiff = false;
+        for (const key of Object.keys(firebaseData)) {
+          const localVal = await IDB.getItem(key);
+          if (JSON.stringify(localVal) !== JSON.stringify(firebaseData[key])) {
+            hasDiff = true;
+            await IDB.setItem(key, firebaseData[key]);
+          }
+        }
+        if (hasDiff) {
+          window.location.reload();
+        }
+      }
+    };
+
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -433,25 +452,25 @@ const App: React.FC = () => {
           lastLoginAt: new Date().toISOString(),
           email: u.email
         });
-        // Sync IDB from Firebase when logging in if local state doesn't have profiles
-        const localProfiles = await IDB.getItem<Profile[]>('appProfiles');
-        const localSaved = await IDB.getItem<Question[]>('savedQuestions');
-        const hasNoData = (!localProfiles || localProfiles.length === 0 || (localProfiles.length === 1 && localProfiles[0].id === 'default')) && (!localSaved || localSaved.length === 0);
-        
-        if (hasNoData) {
-           const firebaseData = await syncFromFirebase(u.uid);
-           if (firebaseData && Object.keys(firebaseData).length > 0) {
-             for (const key of Object.keys(firebaseData)) {
-               await IDB.setItem(key, firebaseData[key]);
-             }
-             window.location.reload();
-             return;
-           }
-        }
+        await checkAndSyncData(u);
+      } else {
+        setIsCheckingAuth(false);
       }
-      setIsCheckingAuth(false);
+      // Wait for sync to finish before disabling auth check for initial load
+      if (u) setIsCheckingAuth(false);
     });
-    return () => unsubscribe();
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && auth.currentUser) {
+         await checkAndSyncData(auth.currentUser);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Listen to saved and known questions
