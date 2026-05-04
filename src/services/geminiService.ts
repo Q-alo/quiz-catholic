@@ -91,7 +91,7 @@ Hãy sử dụng danh sách này để:
 Bạn đã được cung cấp nội dung file câu hỏi năm 2024. Hãy dựa vào phong cách, độ khó và các chủ đề trong đó để tạo ra các câu hỏi MỚI, KHÔNG trùng lặp hoàn toàn với câu hỏi cũ nhưng vẫn bám sát chương trình và phù hợp với CẤP ĐỘ được yêu cầu.
 
 <theological_rules>
-1. TRÍCH DẪN BẮT BUỘC: Khi giải thích, luôn ưu tiên trích dẫn Kinh Thánh (Tên sách, chương, câu - in nghiêng) hoặc GLHTCG (Số khoản cụ thể). 
+1. TRÍCH DẪN BẮT BUỘC: Khi giải thích, luôn ưu tiên trích dẫn Kinh Thánh (Tên sách, chương, câu - in nghiêng) hoặc GLHTCG (Số khoản cụ thể). TUYỆT ĐỐI KHÔNG để lộ chú thích, trích đoạn Kinh Thánh, hay số khoản GLHTCG trong phần "câu hỏi" (question) và phần "các lựa chọn đáp án" (options) hay "câu trả lời" (correctAnswer). Chỉ được phép trình bày trích dẫn trong phần "giải thích" (explanation).
 2. CHỐNG ẢO GIÁC (Zero Hallucination): Tuyệt đối trung thành với Tín lý Công giáo. Nếu không chắc chắn, hãy nói: "Tôi không có dữ liệu mạc khải về vấn đề này".
 3. QUY TẮC DANH XƯNG: Khi nhắc đến tên riêng đã phiên âm (ưu tiên phiên âm Tiếng Việt theo bản dịch của nhóm Các Giờ Kinh Phụng Vụ), BẮT BUỘC kèm tên gốc tiếng Anh/Latinh. VD: Áp-ra-ham (Abraham), Giê-su (Jesus), Ét-te[tránh Ê-xơ-tê như Tin Lành] (Esther).
 CHỈ kèm tên gốc với nội dung câu hỏi (đáp án thì TUYỆT ĐỐI KHÔNG THÊM).
@@ -172,6 +172,7 @@ Yêu cầu:
 3. Nếu là TRẮC NGHIỆM hoặc TRẮC NGHIỆM NHIỀU ĐÁP ÁN: Bắt buộc phải có trường 'options' chứa các lựa chọn.
 4. Nếu là TỰ LUẬN NGẮN hoặc TỰ LUẬN DÀI: Trường 'options' phải để trống hoặc null.
 5. Trường 'type' trong JSON trả về phải là '${type}'.
+6. TUYỆT ĐỐI KHÔNG đưa trích dẫn (ví dụ: Ga 3,16; GLHTCG 123) vào nội dung trường 'question', 'options', hay 'correctAnswer' (vì người chơi có thể dựa vào đó để đoán mò đáp án). Chỉ được phép để trích dẫn trong trường 'explanation'.
 `;
 
   const responseStream = await ai.models.generateContentStream({
@@ -296,7 +297,7 @@ Trả về một mảng JSON, mỗi phần tử chứa điểm số (0-10) và n
       systemInstruction: `Bạn là một giám khảo chấm thi Giáo Lý. Hãy chấm điểm công tâm và đưa ra lời khuyên hữu ích.
       
 <theological_rules>
-1. TRÍCH DẪN BẮT BUỘC: Khi giải thích, luôn ưu tiên trích dẫn Kinh Thánh (Tên sách, chương, câu - in nghiêng) hoặc GLHTCG (Số khoản cụ thể). 
+1. TRÍCH DẪN BẮT BUỘC: Khi đưa ra nhận xét, luôn ưu tiên trích dẫn Kinh Thánh (Tên sách, chương, câu - in nghiêng) hoặc GLHTCG (Số khoản cụ thể).
 2. CHỐNG ẢO GIÁC (Zero Hallucination): Tuyệt đối trung thành với Tín lý Công giáo. Nếu không chắc chắn, hãy nói: "Tôi không có dữ liệu mạc khải về vấn đề này".
 3. QUY TẮC DANH XƯNG: Khi nhắc đến tên riêng đã phiên âm, BẮT BUỘC kèm tên gốc tiếng Anh/Latinh. VD: Áp-ra-ham (Abraham), Giê-su (Jesus).
 4. CHẤM ĐIỂM VÀ GIẢI THÍCH: Đánh giá câu trả lời. Cung cấp đáp án đúng và trích dẫn nguồn Thần học cặn kẽ để giải thích.
