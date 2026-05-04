@@ -136,8 +136,8 @@ export const loginWithGoogle = async () => {
 export const logout = () => signOut(auth);
 
 // Backup all local data to Firebase
-export const syncToFirebase = async (uid: string, localData: any) => {
-  if (!db) return;
+export const syncToFirebase = async (uid: string, localData: any): Promise<string | null> => {
+  if (!db) return null;
   try {
     const backupString = JSON.stringify(localData);
     const storageUsedBytes = new Blob([backupString]).size;
@@ -156,8 +156,10 @@ export const syncToFirebase = async (uid: string, localData: any) => {
 
     await setDoc(doc(db, 'users', uid), payload, { merge: true });
     console.log(`Synced to Firebase. Bytes: ${storageUsedBytes}`);
+    return now;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${uid}`);
+    return null;
   }
 };
 
@@ -198,14 +200,14 @@ export const getGlobalApiUsage = async () => {
 };
 
 // Restore from Firebase
-export const syncFromFirebase = async (uid: string) => {
+export const syncFromFirebase = async (uid: string): Promise<{ data: any, updatedAt: string | null } | null> => {
   if (!db) return null;
   try {
     const d = await getDocFromServer(doc(db, 'users', uid));
     if (d.exists()) {
       const data = d.data();
       if (data && data.backupData) {
-         return JSON.parse(data.backupData);
+         return { data: JSON.parse(data.backupData), updatedAt: data.updatedAt || null };
       }
     }
     return null;

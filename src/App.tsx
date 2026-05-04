@@ -428,19 +428,30 @@ const App: React.FC = () => {
     }
 
     const checkAndSyncData = async (u: User) => {
+      if (wasStarted.current) return;
       // Sync IDB from Firebase when logging in or opening app
-      const firebaseData = await syncFromFirebase(u.uid);
-      if (firebaseData && Object.keys(firebaseData).length > 0) {
-        let hasDiff = false;
-        for (const key of Object.keys(firebaseData)) {
-          const localVal = await IDB.getItem(key);
-          if (JSON.stringify(localVal) !== JSON.stringify(firebaseData[key])) {
-            hasDiff = true;
-            await IDB.setItem(key, firebaseData[key]);
+      const syncResult = await syncFromFirebase(u.uid);
+      if (syncResult && syncResult.data && Object.keys(syncResult.data).length > 0) {
+        const firebaseData = syncResult.data;
+        const firebaseUpdatedAt = syncResult.updatedAt || '0';
+        const localLastSyncAt = await IDB.getItem<string>('lastSyncAt') || '0';
+
+        // Only overwrite local if Firebase is newer or we haven't synced yet
+        if (firebaseUpdatedAt > localLastSyncAt || localLastSyncAt === '0') {
+          let hasDiff = false;
+          for (const key of Object.keys(firebaseData)) {
+            const localVal = await IDB.getItem(key);
+            if (JSON.stringify(localVal) !== JSON.stringify(firebaseData[key])) {
+              hasDiff = true;
+              await IDB.setItem(key, firebaseData[key]);
+            }
           }
-        }
-        if (hasDiff) {
-          window.location.reload();
+          if (hasDiff) {
+            await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
+            window.location.reload();
+          } else if (firebaseUpdatedAt > localLastSyncAt) {
+             await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
+          }
         }
       }
     };
@@ -452,7 +463,9 @@ const App: React.FC = () => {
           lastLoginAt: new Date().toISOString(),
           email: u.email
         });
-        await checkAndSyncData(u);
+        if (!wasStarted.current) {
+          await checkAndSyncData(u);
+        }
       } else {
         setIsCheckingAuth(false);
       }
@@ -461,7 +474,7 @@ const App: React.FC = () => {
     });
 
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && auth.currentUser) {
+      if (document.visibilityState === 'visible' && auth.currentUser && !wasStarted.current) {
          await checkAndSyncData(auth.currentUser);
       }
     };
@@ -827,7 +840,8 @@ const App: React.FC = () => {
         for (const key of keys) {
            data[key] = await IDB.getItem(key);
         }
-        await syncToFirebase(user.uid, data);
+        const syncedAt = await syncToFirebase(user.uid, data);
+        if (syncedAt) await IDB.setItem('lastSyncAt', syncedAt);
       } catch (err) {
         console.error("Backup to Firebase failed", err);
       }
