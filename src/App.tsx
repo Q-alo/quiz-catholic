@@ -92,6 +92,115 @@ const getQuestionTextToRead = (q: Question, questionType: QuestionType) => {
   return cleanTextForTTS(q.question);
 };
 
+const EssayTextArea = ({
+  value,
+  disabled,
+  onChange,
+  onFocus,
+  onBlur,
+  placeholder,
+  className
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (val: string) => void;
+  onFocus: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onBlur: () => void;
+  placeholder?: string;
+  className?: string;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value;
+    setLocalValue(newVal);
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      onChange(newVal);
+    }, 500);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    onChange(localValue);
+    onBlur();
+  };
+
+  return (
+    <textarea
+      disabled={disabled}
+      value={localValue}
+      onChange={handleChange}
+      onFocus={onFocus}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
+const DebouncedInput = ({
+  value,
+  disabled,
+  onChange,
+  onFocus,
+  onBlur,
+  placeholder,
+  className,
+  type = "text"
+}: {
+  value: string;
+  disabled?: boolean;
+  onChange: (val: string) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: () => void;
+  placeholder?: string;
+  className?: string;
+  type?: string;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setLocalValue(newVal);
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      onChange(newVal);
+    }, 500);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    onChange(localValue);
+    if (onBlur) onBlur();
+  };
+
+  return (
+    <input
+      type={type}
+      disabled={disabled}
+      value={localValue}
+      onChange={handleChange}
+      onFocus={onFocus}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -2449,15 +2558,17 @@ const App: React.FC = () => {
                 </button>
 
                 {isCustomTopic && (
-                  <motion.input 
+                  <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    type="text"
-                    value={customTopic}
-                    onChange={(e) => setCustomTopic(e.target.value)}
-                    placeholder="Nhập chủ đề bạn muốn..."
-                    className="w-full glass-panel border border-outline-variant/30 rounded-xl px-4 py-4 text-base font-medium focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-on-surface"
-                  />
+                  >
+                    <DebouncedInput 
+                      value={customTopic}
+                      onChange={setCustomTopic}
+                      placeholder="Nhập chủ đề bạn muốn..."
+                      className="w-full glass-panel border border-outline-variant/30 rounded-xl px-4 py-4 text-base font-medium focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-on-surface"
+                    />
+                  </motion.div>
                 )}
               </div>
             </div>
@@ -3077,7 +3188,7 @@ const App: React.FC = () => {
                           </div>
                         </div>
                         
-                        <textarea
+                        <EssayTextArea
                           disabled={quiz.isEvaluated}
                           value={quiz.userAnswers[idx] || ''}
                           onFocus={(e) => {
@@ -3086,10 +3197,12 @@ const App: React.FC = () => {
                             playText(getQuestionTextToRead(q, questionType), idx);
                           }}
                           onBlur={() => setFocusedEssayIndex(null)}
-                          onChange={(e) => {
-                            const newAnswers = [...quiz.userAnswers];
-                            newAnswers[idx] = e.target.value;
-                            setQuiz(prev => ({ ...prev, userAnswers: newAnswers }));
+                          onChange={(val) => {
+                            setQuiz(prev => {
+                              const newAnswers = [...prev.userAnswers];
+                              newAnswers[idx] = val;
+                              return { ...prev, userAnswers: newAnswers };
+                            });
                           }}
                           placeholder="Nhập câu trả lời của bạn tại đây..."
                           className="w-full h-40 bg-surface-container-low/50 backdrop-blur-md border-2 border-transparent focus:border-primary/20 rounded-2xl p-6 text-base focus:ring-4 focus:ring-primary/5 outline-none resize-none shadow-inner text-on-surface"
