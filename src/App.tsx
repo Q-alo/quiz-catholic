@@ -250,6 +250,12 @@ const App: React.FC = () => {
     document.documentElement.style.setProperty('--font-headline', fontFamily);
     document.documentElement.style.fontSize = `${baseFontSize}px`;
     
+    if (fontFamily.includes('EB Garamond')) {
+      document.body.classList.add('font-medium');
+    } else {
+      document.body.classList.remove('font-medium');
+    }
+
     if (reduceEffects) {
       document.documentElement.classList.add('reduce-effects');
     } else {
@@ -626,7 +632,13 @@ const App: React.FC = () => {
         const lvl = await IDB.getItem<string>('appLevel');
         if (lvl) setQuizLevel(lvl as QuizLevel);
         const font = await IDB.getItem<string>('appFont');
-        if (font) setFontFamily(font);
+        if (font) {
+          if (font.includes('Cormorant Garamond')) {
+            setFontFamily('"EB Garamond", serif');
+          } else {
+            setFontFamily(font);
+          }
+        }
         const fSize = await IDB.getItem<number>('appBaseFontSize');
         if (fSize) setBaseFontSize(Number(fSize));
         const fx = await IDB.getItem<any>('appReduceEffects');
@@ -1743,7 +1755,7 @@ const App: React.FC = () => {
                     {[
                       { name: 'Manrope (Sans-serif)', value: '"Manrope", sans-serif', class: 'font-sans' },
                       { name: 'Inter (Sans-serif)', value: '"Inter", sans-serif', class: 'font-sans' },
-                      { name: 'Cormorant Garamond (Serif)', value: '"Cormorant Garamond", serif', class: 'font-serif' },
+                      { name: 'EB Garamond (Serif)', value: '"EB Garamond", serif', class: 'font-serif font-medium' },
                       { name: 'Montserrat (Sans-serif)', value: '"Montserrat", sans-serif', class: 'font-sans font-medium' },
                     ].map((font) => (
                       <button
