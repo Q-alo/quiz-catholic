@@ -2,8 +2,6 @@
 
 # **Phần I: Ký kết giao ước**
 
-Thể lệ: *Mỗi thí sinh sẽ luân phiên thực hiện phần thi theo thứ tự của mình. Mỗi thí sinh sẽ lần lượt trả lời 7 câu hỏi trong tổng thời gian 1 phút. Với mỗi câu trả lời đúng, thí sinh nhận được 10 điểm. Trả lời sai không bị mất điểm. Thí sinh có thể trả lời ngay trong khi MC đang đọc câu hỏi hoặc nói “Bỏ qua” nếu chưa có câu trả lời. MC sẽ đọc lại câu hỏi nếu thời gian 1 phút vẫn còn. Hoàn thành xong 7 câu hỏi, phần thi của thí sinh sẽ lập tức kết thúc dù cho thời gian 1 phút vẫn còn.*
-
 ## **Bộ đề 1:**
 
 1. Trong Xh 3, 14, Thiên Chúa mạc khải Danh Người là gì?  
@@ -56,8 +54,6 @@ Thể lệ: *Mỗi thí sinh sẽ luân phiên thực hiện phần thi theo th�
 
 # **Phần II: Vượt sông Jordan**
 
-Thể lệ: *Phần thi này có tổng cộng 10 câu hỏi. Với mỗi câu, sau khi MC đọc xong và nói “Hết”, các thí sinh bấm chuông để giành quyền trả lời. Trả lời đúng được 15 điểm, trả lời sai bị trừ 5 điểm. Nếu thí sinh bấm chuông đầu tiên trả lời sai, một trong bốn thí sinh còn lại sẽ có 5 giây để bấm chuông giành quyền trả lời sau khi có hiệu lệnh từ MC. Giành được quyền trả lời, thí sinh phải trả lời ngay lập tức. Trả lời đúng được 10 điểm, trả lời sai bị trừ 5 điểm. Lưu ý rằng thí sinh nào bấm chuông trước khi MC nói hết, hoặc chưa có hiệu lệnh giành quyền trả lời từ MC, thí sinh đó bị mất quyền trả lời câu hỏi đó.*
-
 ## **Câu hỏi:**
 
 1. Tại Việt Nam, Hội Đồng Giám Mục đã chỉ định bao nhiêu ngày lễ khẩn cầu mùa?  
@@ -73,8 +69,6 @@ Thể lệ: *Phần thi này có tổng cộng 10 câu hỏi. Với mỗi câu, 
 
 # **Phần III: Tiến vào Đất Hứa**
 
-Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai vòng thi trước sẽ thi đầu tiên, sau đó lần lượt là các thí sinh thấp điểm hơn. Trường hợp các thí sinh bằng điểm nhau, thứ tự thi sẽ được quyết định dựa trên vị trí đứng của các thí sinh. Trong phần thi này, các câu hỏi được chia ra 3 mức điểm: 10, 20, 30 điểm, tương ứng với thời gian suy nghĩ và trả lời dành cho mỗi câu là 10, 15 và 20 giây. Trước lượt thi của mình, mỗi thí sinh sẽ được lựa chọn 3 câu hỏi với các mức điểm tùy chọn 10, 20 hoặc 30 điểm, trong đó tối đa 2 câu hỏi trong cùng một mức. Thí sinh trả lời đúng sẽ ghi được số điểm của câu hỏi đó, trả lời sai không bị trừ điểm. Trong khoảng thời gian quy định đối với mỗi câu hỏi, thí sinh có thể thay đổi đáp án liên tục. Chương trình sẽ ghi nhận đáp án cuối cùng của thí sinh sau khi hết thời gian. Khi thí sinh đang thực hiện phần thi của mình, trả lời sai, các thí sinh còn lại sẽ có 5 giây để bấm chuông giành quyền trả lời sau khi có hiệu lệnh từ MC. Giành được quyền trả lời, thí sinh phải trả lời ngay lập tức. Thí sinh trả lời đúng sẽ giành được điểm từ thí sinh trả lời sai, ứng với số điểm của câu hỏi. Trả lời sai sẽ bị trừ một nửa số điểm của câu hỏi đó. Với thí sinh giành quyền trả lời, chương trình sẽ chỉ ghi nhận đáp án đầu tiên của thí sinh. Đặc biệt ở phần thi này, mỗi thí sinh được đặt ngôi sao hy vọng 1 lần. Trả lời đúng câu hỏi có ngôi sao hy vọng, thí sinh được gấp đôi số điểm của câu hỏi đó. Trả lời sai sẽ bị trừ đi số điểm của câu hỏi, và không bị trừ điểm nếu các thí sinh còn lại bấm chuông giành quyền và trả lời đúng. Lưu ý rằng thí sinh phải đặt ngôi sao hy vọng trước khi câu hỏi được đọc lên bởi MC hoặc hiện lên trên màn hình.*
-
 ## **Mức 10:**
 
 1. Trong Cựu Ước, lời cầu nguyện của ai tiêu biểu cho lời cầu nguyện chiêm niệm, mà nhờ đó ông kín múc được sức mạnh để kiên trì chuyển cầu cho dân trong tình thân mật với Thiên Chúa?   
@@ -83,7 +77,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 4. Câu lời Chúa “Đức tin không có hành động là đức tin chết” được trích trong thư nào?  
 5. Đức Cha Gioan Đỗ Văn Ngân đang giữ chức vụ gì trong Hội Đồng Giám Mục Việt Nam?
 
-   ## **Mức 20:**
+## **Mức 20:**
 
 1. Đức tin có những đặc tính nào?  
 2. Hành vi đầu tiên của nhân đức thờ phượng là gì?  
@@ -93,7 +87,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 6. Trong sách Công Vụ Tông Đồ, Thánh Paul đã thực hiện mấy hành trình truyền giáo?  
 7. Trong điều răn thứ Năm, những ai trực tiếp thi hành việc phá thai cách hiệu quả thì bị hình phạt gì?
 
-   ## **Mức 30:**
+## **Mức 30:**
 
 1. Khi nói đến Bí Tích Rửa Tội, ngoài việc “Thanh tẩy bằng nước” là một hình thức thông thường, Hội Thánh còn đề cập đến 2 hình thức thanh tẩy nào khác?  
 2. Trong sách Công Vụ Tông Đồ, sau bài giảng đầu tiên của thánh Peter, khoảng bao nhiêu người đã chịu phép rửa?  
@@ -179,7 +173,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 5. Tổ chức tiền thân của Phong trào TNTT mang tên là gì?  
 6. Lễ Đức Mẹ Mân Côi được mừng kính vào ngày nào?
 
-   ## **Mức 20:**
+## **Mức 20:**
 
 1. Trong trường hợp nào mà một việc xấu trở nên tốt?  
 2. Theo lịch Do Thái, lễ Vượt Qua được mừng vào ngày nào và kéo dài bao lâu?  
@@ -189,7 +183,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 6. Trong sách Công Vụ Tông Đồ, những ai đã đi cùng thánh Paul trong cuộc hành trình truyền giáo lần thứ nhất?  
 7. Tuần Bát Nhật Giáng Sinh kết thúc với lễ gì?
 
-   ## **Mức 30:**
+## **Mức 30:**
 
 1. Hội Thánh được khởi đầu và hoàn thành thế nào?  
 2. Hãy kể 3 dụ ngôn về lòng thương xót của Thiên Chúa được ghi lại trong Tin Mừng Luca?  
@@ -273,7 +267,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 9. Những nguồn mạch nào giúp chúng ta cầu nguyện?  
 10. Tin Mừng theo thánh sử nào có đặc điểm trích dẫn nhiều Cựu Ước, bàn sâu rộng về đề tài Hội Thánh và có tính cách lịch sử, minh giáo?
 
-    ## **Mức 20:**
+## **Mức 20:**
 
 8. Điền những từ còn thiếu trong phát biểu sau: “\_\_\_\_ là việc tha thứ những \_\_\_\_ đáng chịu vì những tội chúng ta phạm, dù những tội này đã được tha thứ”?  
 9. Trong Tân Ước, các Thư Chung đề cập nhiều đến các đề tài quan trọng về Thần học, Phụng vụ và lĩnh vực nào?  
@@ -283,7 +277,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 13. Câu Lời Chúa: “Lời ngôn sứ không bao giờ lại do ý muốn người phàm, nhưng chính nhờ Thánh Thần thúc đẩy mà có những người đã nói theo lệnh của Thiên Chúa” được trích trong thư nào?  
 14. Đức Giám Mục Gioan Đỗ Văn Ngân được bổ nhiệm làm Giám Mục Chánh Tòa GPXL vào ngày, tháng, năm nào?
 
-    ## **Mức 30:**
+## **Mức 30:**
 
 3. Trong Cựu Ước, Thiên Chúa dạy: "Ngươi không được tạc tượng, vẽ hình bất cứ vật gì ở trên trời cao, cũng như dưới đất thấp, hoặc ở trong nước phía dưới mặt đất, để mà thờ” (Xh 20,4). Vậy tại sao Hội Thánh Công giáo lại cho phép tôn kính ảnh tượng Chúa?  
 4. Trong Mười Bốn Chặng Đàng Thánh Giá, Chúa Jesus ngã xuống đất ở những chặng nào  
@@ -369,7 +363,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 13. Thánh Lễ quan trọng như thế nào đối với đời sống Kitô giáo?  
 14. Những dấu nào cho biết mình có ơn gọi sống đời thánh hiến?
 
-    ## **Mức 20:**
+## **Mức 20:**
 
 15. Những ông trương, bà quản, hay phụ huynh yêu mến trẻ, sẵn sàng hỗ trợ linh mục Tuyên uý và xứ đoàn trong công việc giáo dục Thiếu Nhi, được gọi là gì?  
 16. Theo sách GLHTCG, nền tảng của tình yêu đối với người nghèo là gì?  
@@ -382,7 +376,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 23. Trong thư gửi các tín hữu Galat, thánh Paul mời gọi mọi người lấy điều gì để phục vụ nhau?  
 24. Điều răn thứ bảy đòi buộc những gì?
 
-    ## **Mức 30:**
+## **Mức 30:**
 
 7. Xét về diện tích, Giáo phận nào rộng nhất trong các Giáo phận VN hiện nay?
 
@@ -465,7 +459,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 18. Hiện nay, GHVN có bao nhiêu chân phước và hiển thánh tử đạo?  
 19. Tội thứ 5 trong “Bảy mối tội đầu” là tội?
 
-    ## **Mức 20:**
+## **Mức 20:**
 
 25. Chúa Thánh Thần hoạt động trong Hội Thánh thế nào?  
 26. Vào lúc Đức Jesus biến hình trên núi, hai nhân vật nào đã hiện ra đàm đạo với Người?  
@@ -474,7 +468,7 @@ Thể lệ: *Ở phần thi cuối cùng, thí sinh cao điểm nhất sau hai v
 29. Nhờ sự phục sinh của Chúa Jesus chúng ta được ơn gì?  
 30. Quyền tha tội của Hội Thánh nhắc nhở chúng ta điều gì?
 
-    ## **Mức 30:**
+## **Mức 30:**
 
 8. Trình thuật Giáng sinh không được đề cập đến trong các sách Tin Mừng nào?  
 9. Hãy kể ba hình ảnh biểu tượng có trong Logo năm mục vụ 2024 của GPXL?  

@@ -2557,7 +2557,7 @@ const App: React.FC = () => {
                 )})}
               </div>
               
-              <div className="mt-6 space-y-3">
+              <div className="mt-6 flex flex-col">
                 <button
                   onClick={() => setIsCustomTopic(!isCustomTopic)}
                   className={`w-full px-4 py-4 rounded-xl text-sm font-bold transition-all active:scale-[0.98] border ${
@@ -2569,19 +2569,25 @@ const App: React.FC = () => {
                   {isCustomTopic ? '✓ Đang dùng chủ đề tự chọn' : '+ Thêm chủ đề tự chọn'}
                 </button>
 
-                {isCustomTopic && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                  >
-                    <DebouncedInput 
-                      value={customTopic}
-                      onChange={setCustomTopic}
-                      placeholder="Nhập chủ đề bạn muốn..."
-                      className="w-full glass-panel border border-outline-variant/30 rounded-xl px-4 py-4 text-base font-medium focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-on-surface"
-                    />
-                  </motion.div>
-                )}
+                <AnimatePresence>
+                  {isCustomTopic && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <div className="pt-3">
+                        <DebouncedInput 
+                          value={customTopic}
+                          onChange={setCustomTopic}
+                          placeholder="Nhập chủ đề bạn muốn..."
+                          className="w-full glass-panel border border-outline-variant/30 rounded-xl px-4 py-4 text-base font-medium focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-on-surface"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
