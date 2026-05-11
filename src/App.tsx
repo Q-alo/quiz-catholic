@@ -272,6 +272,8 @@ const App: React.FC = () => {
 
   // Lock body scroll when modal is open
   useEffect(() => {
+    getGlobalApiUsage().then(stats => setGlobalApiStats(stats as {flash_lite: number, flash: number}));
+    
     if (isSettingsOpen || selectedDetailQuestion || showSuccess) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -279,7 +281,7 @@ const App: React.FC = () => {
     }
     
     if (isSettingsOpen) {
-      getGlobalApiUsage().then(stats => setGlobalApiStats(stats));
+      // getGlobalApiUsage already called above
     }
     
     return () => {
@@ -546,28 +548,39 @@ const App: React.FC = () => {
       if (wasStarted.current) return;
       // Sync IDB from Firebase when logging in or opening app
       const syncResult = await syncFromFirebase(u.uid);
-      if (syncResult && syncResult.data && Object.keys(syncResult.data).length > 0) {
-        const firebaseData = syncResult.data;
-        const firebaseUpdatedAt = syncResult.updatedAt || '0';
-        const localLastSyncAt = await IDB.getItem<string>('lastSyncAt') || '0';
+      
+      const localLastSyncAt = await IDB.getItem<string>('lastSyncAt') || '0';
+      const keys = await IDB.getAllKeys();
+      const localData: Record<string, any> = {};
+      for (const key of keys) {
+        localData[key] = await IDB.getItem(key);
+      }
 
-        // Only overwrite local if Firebase is newer or we haven't synced yet
-        if (firebaseUpdatedAt > localLastSyncAt || localLastSyncAt === '0') {
-          let hasDiff = false;
-          for (const key of Object.keys(firebaseData)) {
-            const localVal = await IDB.getItem(key);
-            if (JSON.stringify(localVal) !== JSON.stringify(firebaseData[key])) {
-              hasDiff = true;
-              await IDB.setItem(key, firebaseData[key]);
-            }
-          }
-          if (hasDiff) {
-            await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
-            window.location.reload();
-          } else if (firebaseUpdatedAt > localLastSyncAt) {
-             await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
+      const firebaseUpdatedAt = syncResult?.updatedAt || '0';
+
+      // 1. Pull from Firebase if Firebase is newer
+      if (syncResult && syncResult.data && (firebaseUpdatedAt > localLastSyncAt || localLastSyncAt === '0')) {
+        const firebaseData = syncResult.data;
+        let hasDiff = false;
+        for (const key of Object.keys(firebaseData)) {
+          const localVal = await IDB.getItem(key);
+          if (JSON.stringify(localVal) !== JSON.stringify(firebaseData[key])) {
+            hasDiff = true;
+            await IDB.setItem(key, firebaseData[key]);
           }
         }
+        if (hasDiff) {
+          await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
+          window.location.reload();
+          return;
+        } else if (firebaseUpdatedAt > localLastSyncAt) {
+           await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
+        }
+      } 
+      // 2. Push to Firebase if local is newer (or they are same but we want to ensure sync on reload)
+      else if (localLastSyncAt !== '0') {
+        const syncedAt = await syncToFirebase(u.uid, localData);
+        if (syncedAt) await IDB.setItem('lastSyncAt', syncedAt);
       }
     };
 
