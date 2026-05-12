@@ -222,8 +222,8 @@ const App: React.FC = () => {
   const [isSavedQuestionsOpen, setIsSavedQuestionsOpen] = useState(false);
   const [isKnownQuestionsOpen, setIsKnownQuestionsOpen] = useState(false);
   const [selectedDetailQuestion, setSelectedDetailQuestion] = useState<Question | null>(null);
-  const [fontFamily, setFontFamily] = useState<string>('"Manrope", sans-serif');
-  const [baseFontSize, setBaseFontSize] = useState<number>(typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 16);
+  const [fontFamily, setFontFamily] = useState<string>('"Montserrat", sans-serif');
+  const [baseFontSize, setBaseFontSize] = useState<number>(typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 14);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [focusedEssayIndex, setFocusedEssayIndex] = useState<number | null>(null);
@@ -263,8 +263,6 @@ const App: React.FC = () => {
     }
     
     if (isAppLoaded) {
-      IDB.setItem('appFont', fontFamily);
-      IDB.setItem('appBaseFontSize', baseFontSize);
       IDB.setItem('appLevel', quizLevel);
       IDB.setItem('appReduceEffects', reduceEffects);
     }
@@ -380,7 +378,6 @@ const App: React.FC = () => {
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
-    if (isAppLoaded) IDB.setItem('isAutoTTS', isAutoTTS);
     if (!isAutoTTS) {
       stopAudio();
     }
@@ -644,20 +641,8 @@ const App: React.FC = () => {
 
         const lvl = await IDB.getItem<string>('appLevel');
         if (lvl) setQuizLevel(lvl as QuizLevel);
-        const font = await IDB.getItem<string>('appFont');
-        if (font) {
-          if (font.includes('Cormorant Garamond')) {
-            setFontFamily('"EB Garamond", serif');
-          } else {
-            setFontFamily(font);
-          }
-        }
-        const fSize = await IDB.getItem<number>('appBaseFontSize');
-        if (fSize) setBaseFontSize(Number(fSize));
         const fx = await IDB.getItem<any>('appReduceEffects');
         if (fx) setReduceEffects(fx === true || fx === 'true');
-        const tts = await IDB.getItem<any>('isAutoTTS');
-        if (tts !== null) setIsAutoTTS(tts === true || String(tts) === 'true');
         const v = await IDB.getItem<string>('ttsVoice');
         if (v) setTtsVoice(v);
         
@@ -1792,10 +1777,10 @@ const App: React.FC = () => {
                   <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Kích thước chữ (Modular Scale)</label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {[
-                      { name: 'Nhỏ', value: 14 },
-                      { name: 'Tiêu chuẩn', value: 16 },
-                      { name: 'Lớn', value: 18 },
-                      { name: 'Rất lớn', value: 20 },
+                      { name: 'Nhỏ', value: 12 },
+                      { name: 'Tiêu chuẩn', value: 14 },
+                      { name: 'Lớn', value: 16 },
+                      { name: 'Rất lớn', value: 18 },
                     ].map((size) => (
                       <button
                         key={size.value}
@@ -1878,9 +1863,10 @@ const App: React.FC = () => {
                 <div>
                     <button 
                       onClick={() => {
-                        setFontFamily('"Manrope", sans-serif');
-                        setBaseFontSize(16);
+                        setFontFamily('"Montserrat", sans-serif');
+                        setBaseFontSize(typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 14);
                         setTtsVoice('vi-VN-Standard-A');
+                        setIsAutoTTS(false);
                         setReduceEffects(false);
                       }}
                       className="w-full mt-4 py-3 rounded-xl border border-outline-variant/30 text-sm text-primary hover:bg-primary hover:text-on-primary transition-all active:scale-95 font-bold"
