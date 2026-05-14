@@ -217,6 +217,8 @@ const App: React.FC = () => {
   const [globalApiStats, setGlobalApiStats] = useState<{flash_lite: number, flash: number}>({flash_lite: 0, flash: 0});
   const [isStarted, setIsStarted] = useState(false);
   const wasStarted = useRef(false);
+  const canSyncQuestionsRef = useRef(false);
+  const lastSyncDataRef = useRef<Record<string, any>>({});
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSavedQuestionsOpen, setIsSavedQuestionsOpen] = useState(false);
@@ -545,12 +547,15 @@ const App: React.FC = () => {
       if (wasStarted.current) return;
       // Sync IDB from Firebase when logging in or opening app
       const syncResult = await syncFromFirebase(u.uid);
+      canSyncQuestionsRef.current = syncResult?.canSyncQuestions === true;
       
       const localLastSyncAt = await IDB.getItem<string>('lastSyncAt') || '0';
       const keys = await IDB.getAllKeys();
       const localData: Record<string, any> = {};
       for (const key of keys) {
-        localData[key] = await IDB.getItem(key);
+        if (key !== 'lastSyncAt') {
+           localData[key] = await IDB.getItem(key);
+        }
       }
 
       const firebaseUpdatedAt = syncResult?.updatedAt || '0';
@@ -564,21 +569,22 @@ const App: React.FC = () => {
           if (JSON.stringify(localVal) !== JSON.stringify(firebaseData[key])) {
             hasDiff = true;
             await IDB.setItem(key, firebaseData[key]);
+            localData[key] = firebaseData[key];
           }
         }
         if (hasDiff) {
           await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
+          // Set tracking ref
+          lastSyncDataRef.current = localData;
           window.location.reload();
           return;
         } else if (firebaseUpdatedAt > localLastSyncAt) {
            await IDB.setItem('lastSyncAt', firebaseUpdatedAt);
         }
-      } 
-      // 2. Push to Firebase if local is newer (or they are same but we want to ensure sync on reload)
-      else if (localLastSyncAt !== '0') {
-        const syncedAt = await syncToFirebase(u.uid, localData);
-        if (syncedAt) await IDB.setItem('lastSyncAt', syncedAt);
       }
+      
+      // Store current state as last synced for future diffing
+      lastSyncDataRef.current = localData;
     };
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -717,10 +723,31 @@ const App: React.FC = () => {
       await IDB.setItem('apiUsage', currentUsage);
       
       if (user) {
-         updateUserMetrics(user.uid, {
-            dailyGeminiCalls: currentUsage.dailyGeminiCalls,
-            recentApiTimestamps: currentUsage.recentApiTimestamps
-         });
+         // Diffing logic for actual backup sync
+         const keys = await IDB.getAllKeys();
+         const currentData: Record<string, any> = {};
+         const changedData: Record<string, any> = {};
+         for (const key of keys) {
+           if (key !== 'lastSyncAt') {
+             const val = await IDB.getItem(key);
+             currentData[key] = val;
+             if (JSON.stringify(val) !== JSON.stringify(lastSyncDataRef.current[key])) {
+               // Only push question lists if allowed
+               if ((key.startsWith('savedQuestions_') || key.startsWith('knownQuestions_')) && !canSyncQuestionsRef.current) {
+                 continue;
+               }
+               changedData[key] = val;
+             }
+           }
+         }
+         
+         if (Object.keys(changedData).length > 0) {
+            const syncedAt = await syncToFirebase(user.uid, changedData);
+            if (syncedAt) {
+              await IDB.setItem('lastSyncAt', syncedAt);
+              lastSyncDataRef.current = currentData;
+            }
+         }
       }
       
       // Increment global API usage by model name
@@ -950,21 +977,6 @@ const App: React.FC = () => {
       currentIndex: -1, 
       loading: false 
     }));
-    
-    // Backup to Firebase
-    if (user) {
-      try {
-        const keys = await IDB.getAllKeys();
-        const data: Record<string, any> = {};
-        for (const key of keys) {
-           data[key] = await IDB.getItem(key);
-        }
-        const syncedAt = await syncToFirebase(user.uid, data);
-        if (syncedAt) await IDB.setItem('lastSyncAt', syncedAt);
-      } catch (err) {
-        console.error("Backup to Firebase failed", err);
-      }
-    }
   };
 
   const getPreviousQuestion = () => {

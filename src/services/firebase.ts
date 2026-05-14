@@ -136,26 +136,23 @@ export const loginWithGoogle = async () => {
 export const logout = () => signOut(auth);
 
 // Backup all local data to Firebase
-export const syncToFirebase = async (uid: string, localData: any): Promise<string | null> => {
-  if (!db) return null;
+export const syncToFirebase = async (uid: string, changedData: any): Promise<string | null> => {
+  if (!db || Object.keys(changedData).length === 0) return null;
   try {
-    const backupString = JSON.stringify(localData);
-    const storageUsedBytes = new Blob([backupString]).size;
     const now = new Date().toISOString();
 
     const payload: any = {
-      backupData: backupString,
+      dbData: changedData,
       updatedAt: now,
-      storageUsedBytes,
     };
 
-    if (localData.apiUsage) {
-       payload.dailyGeminiCalls = localData.apiUsage.dailyGeminiCalls || 0;
-       payload.recentApiTimestamps = localData.apiUsage.recentApiTimestamps || [];
+    if (changedData.apiUsage) {
+       payload.dailyGeminiCalls = changedData.apiUsage.dailyGeminiCalls || 0;
+       payload.recentApiTimestamps = changedData.apiUsage.recentApiTimestamps || [];
     }
 
     await setDoc(doc(db, 'users', uid), payload, { merge: true });
-    console.log(`Synced to Firebase. Bytes: ${storageUsedBytes}`);
+    console.log(`Synced diff to Firebase. Keys: ${Object.keys(changedData).join(', ')}`);
     return now;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${uid}`);
@@ -200,15 +197,23 @@ export const getGlobalApiUsage = async () => {
 };
 
 // Restore from Firebase
-export const syncFromFirebase = async (uid: string): Promise<{ data: any, updatedAt: string | null } | null> => {
+export const syncFromFirebase = async (uid: string): Promise<{ data: any, updatedAt: string | null, canSyncQuestions?: boolean } | null> => {
   if (!db) return null;
   try {
     const d = await getDocFromServer(doc(db, 'users', uid));
     if (d.exists()) {
       const data = d.data();
+      let parsedData = null;
       if (data && data.backupData) {
-         return { data: JSON.parse(data.backupData), updatedAt: data.updatedAt || null };
+         try { parsedData = JSON.parse(data.backupData); } catch(e) {}
+      } else if (data && data.dbData) {
+         parsedData = data.dbData;
       }
+      return { 
+        data: parsedData, 
+        updatedAt: data?.updatedAt || null, 
+        canSyncQuestions: data?.canSyncQuestions === true 
+      };
     }
     return null;
   } catch (error) {
