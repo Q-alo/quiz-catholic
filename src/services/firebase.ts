@@ -203,11 +203,12 @@ export const syncFromFirebase = async (uid: string): Promise<{ data: any, update
     const d = await getDocFromServer(doc(db, 'users', uid));
     if (d.exists()) {
       const data = d.data();
-      let parsedData = null;
+      let parsedData: any = null;
       if (data && data.backupData) {
          try { parsedData = JSON.parse(data.backupData); } catch(e) {}
-      } else if (data && data.dbData) {
-         parsedData = data.dbData;
+      }
+      if (data && data.dbData) {
+         parsedData = { ...(parsedData || {}), ...data.dbData };
       }
       return { 
         data: parsedData, 
