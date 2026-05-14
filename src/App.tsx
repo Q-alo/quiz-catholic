@@ -734,7 +734,7 @@ const App: React.FC = () => {
              currentData[key] = val;
              if (JSON.stringify(val) !== JSON.stringify(lastSyncDataRef.current[key])) {
                // Only push question lists if allowed
-               if ((key.startsWith('savedQuestions_') || key.startsWith('knownQuestions_')) && !canSyncQuestionsRef.current) {
+               if ((key.startsWith('savedQuestions') || key.startsWith('knownQuestions')) && !canSyncQuestionsRef.current) {
                  continue;
                }
                changedData[key] = val;
