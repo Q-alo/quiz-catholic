@@ -705,6 +705,9 @@ const App: React.FC = () => {
     if (msg.includes('network') || msg.includes('fetch')) {
       return "Lỗi kết nối: Không thể kết nối tới máy chủ AI. Vui lòng kiểm tra mạng của bạn.";
     }
+    if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
+      return "Lỗi API (503): Máy chủ đang bận xử lý, vui lòng thử lại sau vài giây.";
+    }
     return `Lỗi hệ thống: ${msg}`;
   };
 
@@ -816,7 +819,6 @@ const App: React.FC = () => {
         const oldQuestions = shuffled.slice(0, existingCount).map(q => ({ ...q, isNew: false }));
         
         const newCount = questionCount - existingCount;
-        await trackApiUsage();
         const result = await generateQuestions(
           topicToUse, 
           questionType, 
@@ -840,12 +842,12 @@ const App: React.FC = () => {
           },
           geminiModel
         );
+        await trackApiUsage();
         const newQuestions = result.questions;
         generatedSuccessMessage = result.successMessage;
         
         initialQuestions = [...oldQuestions, ...newQuestions];
       } else if (mode === 'new') {
-        await trackApiUsage();
         const result = await generateQuestions(
           topicToUse, 
           questionType, 
@@ -869,6 +871,7 @@ const App: React.FC = () => {
           },
           geminiModel
         );
+        await trackApiUsage();
         initialQuestions = result.questions;
         generatedSuccessMessage = result.successMessage;
       }
@@ -957,10 +960,11 @@ const App: React.FC = () => {
         throw new Error("Không thể tạo câu hỏi. Vui lòng thử lại.");
       }
     } catch (err: any) {
+      const msg = err?.message || String(err);
       setQuiz(prev => ({ ...prev, loading: false, error: formatApiError(err) }));
       setIsStarted(false);
       setTimeout(() => {
-        errorViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('error-msg')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
     }
   };
@@ -1179,8 +1183,8 @@ const App: React.FC = () => {
           correctAnswer: q.correctAnswer,
           userAnswer: quiz.userAnswers[i] || "Không trả lời"
         }));
-        await trackApiUsage();
         const results = await evaluateAllEssayAnswers(qaList, geminiModel);
+        await trackApiUsage();
         const newEvaluatedResults = results.map(r => r.score >= 5);
         setQuiz(prev => ({ 
           ...prev, 
@@ -1195,7 +1199,11 @@ const App: React.FC = () => {
         }, 100);
       }
     } catch (err: any) {
+      const msg = err?.message || String(err);
       setQuiz(prev => ({ ...prev, loading: false, error: "Đánh giá thất bại: " + formatApiError(err) }));
+      setTimeout(() => {
+        document.getElementById('error-msg')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
     }
   };
 
@@ -2617,9 +2625,9 @@ const App: React.FC = () => {
           </div>
 
           {/* Saved Questions Lists */}
-          <section className="space-y-6" ref={errorViewRef}>
+          <section className="space-y-6">
             {quiz.error && (
-              <p className="mb-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl border border-error/20">
+              <p id="error-msg" className="mb-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl border border-error/20">
                 <AlertCircle className="w-5 h-5" /> {quiz.error}
               </p>
             )}
@@ -3183,7 +3191,7 @@ const App: React.FC = () => {
                   </div>
                   
                   {quiz.error && (
-                    <p className="mt-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl">
+                    <p id="error-msg" className="mt-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl">
                       <AlertCircle className="w-5 h-5" /> {quiz.error}
                     </p>
                   )}
@@ -3324,7 +3332,7 @@ const App: React.FC = () => {
                   </div>
                   
                   {quiz.error && (
-                    <p className="mt-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl">
+                    <p id="error-msg" className="mt-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl">
                       <AlertCircle className="w-5 h-5" /> {quiz.error}
                     </p>
                   )}

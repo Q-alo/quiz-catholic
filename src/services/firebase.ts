@@ -169,13 +169,13 @@ export const updateUserMetrics = async (uid: string, data: any) => {
   }
 };
 
-export const incrementGlobalApiUsage = async (model: string) => {
+export const incrementGlobalApiUsage = async (model: string, amount: number = 1) => {
   if (!db) return;
   try {
     const today = new Date().toISOString().split('T')[0];
     const docRef = doc(db, 'stats', `apiUsage_${today}`);
     const key = model === "gemini-3.1-flash-lite-preview" ? "flash_lite" : "flash";
-    await setDoc(docRef, { [key]: increment(1) }, { merge: true });
+    await setDoc(docRef, { [key]: increment(amount) }, { merge: true });
   } catch (error) {
     console.error("Error incrementing global API usage", error);
   }

@@ -138,6 +138,44 @@ export async function generateQuestions(
   onPartialQuestions?: (questions: Question[]) => void,
   modelName: string = "gemini-3.1-flash-lite-preview"
 ): Promise<{ questions: Question[], successMessage: string }> {
+  let attempt = 0;
+  const maxRetries = 3;
+  
+  while (attempt < maxRetries) {
+    try {
+      return await generateQuestionsInternal(
+        topic, type, count, contextFileContent, level, 
+        existingQuestions, knownQuestions, onProgress, onPartialQuestions, modelName
+      );
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          throw error;
+        }
+        // Wait before retrying (exponential fallback)
+        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Tạo câu hỏi thất bại sau nhiều lần thử.");
+}
+
+async function generateQuestionsInternal(
+  topic: string, 
+  type: QuestionType, 
+  count: number, 
+  contextFileContent: string,
+  level: QuizLevel,
+  existingQuestions: Question[] = [],
+  knownQuestions: Question[] = [],
+  onProgress?: (count: number) => void,
+  onPartialQuestions?: (questions: Question[]) => void,
+  modelName: string = "gemini-3.1-flash-lite-preview"
+): Promise<{ questions: Question[], successMessage: string }> {
   const model = modelName;
   
   const typeText = type === 'multiple-choice' 
@@ -273,6 +311,32 @@ Yêu cầu:
 }
 
 export async function evaluateAllEssayAnswers(
+  questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[],
+  modelName: string = "gemini-3.1-flash-lite-preview"
+): Promise<{ score: number; feedback: string }[]> {
+  let attempt = 0;
+  const maxRetries = 3;
+  
+  while (attempt < maxRetries) {
+    try {
+      return await evaluateAllEssayAnswersInternal(questionsAndAnswers, modelName);
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          throw error;
+        }
+        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Đánh giá thất bại sau nhiều lần thử.");
+}
+
+async function evaluateAllEssayAnswersInternal(
   questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[],
   modelName: string = "gemini-3.1-flash-lite-preview"
 ): Promise<{ score: number; feedback: string }[]> {
