@@ -272,22 +272,23 @@ const App: React.FC = () => {
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    getGlobalApiUsage().then(stats => setGlobalApiStats(stats as {flash_lite: number, flash: number}));
-    
     if (isSettingsOpen || selectedDetailQuestion || showSuccess) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     
-    if (isSettingsOpen) {
-      // getGlobalApiUsage already called above
-    }
-    
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, [isSettingsOpen, selectedDetailQuestion, showSuccess]);
+
+  // Fetch API usage when opening settings ONLY
+  useEffect(() => {
+    if (isSettingsOpen) {
+      getGlobalApiUsage().then(stats => setGlobalApiStats(stats as {flash_lite: number, flash: number}));
+    }
+  }, [isSettingsOpen]);
 
   const triggerConfetti = () => {
     const duration = 3 * 1000;
