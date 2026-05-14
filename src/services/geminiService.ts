@@ -134,24 +134,60 @@ export async function generateQuestions(
   level: QuizLevel,
   existingQuestions: Question[] = [],
   knownQuestions: Question[] = [],
-  onProgress?: (count: number) => void,
+  onProgress?: (count: number, attempt?: number) => void,
   onPartialQuestions?: (questions: Question[]) => void,
   modelName: string = "gemini-3.1-flash-lite-preview"
 ): Promise<{ questions: Question[], successMessage: string }> {
   let attempt = 0;
-  const maxRetries = 3;
+  const maxRetries = 5;
+  let accumulatedQuestions: Question[] = [];
+  let currentKnownQuestions = [...knownQuestions];
+  let remainingCount = count;
+  let lastPartial: Question[] = [];
   
   while (attempt < maxRetries) {
     try {
-      return await generateQuestionsInternal(
-        topic, type, count, contextFileContent, level, 
-        existingQuestions, knownQuestions, onProgress, onPartialQuestions, modelName
+      if (attempt > 0 && onProgress) {
+        onProgress(accumulatedQuestions.length, attempt);
+      }
+      
+      const result = await generateQuestionsInternal(
+        topic, type, remainingCount, contextFileContent, level, 
+        existingQuestions, currentKnownQuestions, 
+        (c) => onProgress && onProgress(accumulatedQuestions.length + c, attempt),
+        (partial) => {
+          lastPartial = partial;
+          if (onPartialQuestions) {
+            onPartialQuestions([...accumulatedQuestions, ...partial]);
+          }
+        }, 
+        modelName
       );
+      
+      return {
+        questions: [...accumulatedQuestions, ...result.questions],
+        successMessage: result.successMessage
+      };
     } catch (error: any) {
       const msg = error?.message || String(error);
-      if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
+      if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('500') || msg.includes('fetch')) {
         attempt++;
-        if (attempt >= maxRetries) {
+        
+        // Save successfully generated questions
+        if (lastPartial && lastPartial.length > 0) {
+          accumulatedQuestions = [...accumulatedQuestions, ...lastPartial];
+          currentKnownQuestions = [...currentKnownQuestions, ...lastPartial];
+          remainingCount = count - accumulatedQuestions.length;
+          lastPartial = []; // reset for next attempt
+        }
+        
+        if (attempt >= maxRetries || remainingCount <= 0) {
+          if (accumulatedQuestions.length > 0 && remainingCount <= 0) {
+            return {
+              questions: accumulatedQuestions,
+              successMessage: "Bạn đã hoàn thành xuất sắc bộ câu hỏi ôn tập này. Hãy tiếp tục cố gắng nhé!"
+            };
+          }
           throw error;
         }
         // Wait before retrying (exponential fallback)
@@ -312,17 +348,21 @@ Yêu cầu:
 
 export async function evaluateAllEssayAnswers(
   questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[],
-  modelName: string = "gemini-3.1-flash-lite-preview"
+  modelName: string = "gemini-3.1-flash-lite-preview",
+  onRetry?: (attempt: number) => void
 ): Promise<{ score: number; feedback: string }[]> {
   let attempt = 0;
-  const maxRetries = 3;
+  const maxRetries = 5;
   
   while (attempt < maxRetries) {
     try {
+      if (attempt > 0 && onRetry) {
+        onRetry(attempt);
+      }
       return await evaluateAllEssayAnswersInternal(questionsAndAnswers, modelName);
     } catch (error: any) {
       const msg = error?.message || String(error);
-      if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
+      if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('500') || msg.includes('fetch')) {
         attempt++;
         if (attempt >= maxRetries) {
           throw error;

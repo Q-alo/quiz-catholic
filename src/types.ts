@@ -41,4 +41,5 @@ export interface QuizState {
   isSaved: boolean;
   loading: boolean;
   error: string | null;
+  loadingMsg?: string;
 }

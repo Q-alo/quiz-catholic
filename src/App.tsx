@@ -827,7 +827,7 @@ const App: React.FC = () => {
           quizLevel, 
           savedQuestions, 
           knownQuestions,
-          (count) => setLoadingMessage(`Đang tạo bộ câu hỏi (${count-1}/${newCount})...`),
+          (count, attempt) => setLoadingMessage(`Đang tạo câu hỏi (${oldQuestions.length + count} / ${questionCount})...${attempt && attempt > 0 ? ` [Thử lại lần ${attempt}]` : ""}`),
           (partialQuestions) => {
             setQuiz(prev => {
               const newSessionQuestions = [...oldQuestions, ...partialQuestions];
@@ -856,7 +856,7 @@ const App: React.FC = () => {
           quizLevel, 
           savedQuestions, 
           knownQuestions,
-          (count) => setLoadingMessage(`Đang tạo bộ câu hỏi (${count-1}/${questionCount})...`),
+          (count, attempt) => setLoadingMessage(`Đang tạo câu hỏi (${count} / ${questionCount})...${attempt && attempt > 0 ? ` [Thử lại lần ${attempt}]` : ""}`),
           (partialQuestions) => {
             setQuiz(prev => {
               const newSessionQuestions = partialQuestions;
@@ -1183,7 +1183,9 @@ const App: React.FC = () => {
           correctAnswer: q.correctAnswer,
           userAnswer: quiz.userAnswers[i] || "Không trả lời"
         }));
-        const results = await evaluateAllEssayAnswers(qaList, geminiModel);
+        const results = await evaluateAllEssayAnswers(qaList, geminiModel, (attempt) => {
+          setQuiz(prev => ({ ...prev, loadingMsg: `[Thử lại lần ${attempt}] Đang tiếp tục chấm điểm...` }));
+        });
         await trackApiUsage();
         const newEvaluatedResults = results.map(r => r.score >= 5);
         setQuiz(prev => ({ 
@@ -3318,7 +3320,7 @@ const App: React.FC = () => {
                         className="flex-1 bg-primary text-on-primary py-6 rounded-2xl font-bold hover:opacity-90 active:scale-[0.98] active:bg-primary/90 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:active:scale-100 text-base"
                       >
                         {quiz.loading ? <RefreshCw className="w-7 h-7 animate-spin" /> : <CheckCircle2 className="w-7 h-7" />}
-                        Kiểm tra đáp án
+                        {quiz.loading ? (quiz.loadingMsg || "Đang chấm điểm...") : "Kiểm tra đáp án"}
                       </button>
                     ) : (
                       <button
