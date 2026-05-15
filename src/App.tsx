@@ -206,7 +206,6 @@ const App: React.FC = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAppLoaded, setIsAppLoaded] = useState(false);
   const [contextContent, setContextContent] = useState<string>("");
-  const [mode, setMode] = useState<'new' | 'old' | 'both'>('new');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([TOPICS[0], TOPICS[1]]);
   const [customTopic, setCustomTopic] = useState<string>("");
   const [isCustomTopic, setIsCustomTopic] = useState(false);
@@ -760,22 +759,7 @@ const App: React.FC = () => {
   };
 
   const startSession = async () => {
-    if (mode === 'old' && savedQuestions.length === 0) {
-      setQuiz(prev => ({ ...prev, error: "Bạn chưa có câu hỏi nào trong kho 'Chưa biết'. Hãy chọn chế độ 'Câu hỏi mới' để bắt đầu." }));
-      setTimeout(() => {
-        errorViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      return;
-    }
-
     let targetCount = questionCount;
-    if (mode === 'old') {
-      targetCount = Math.min(questionCount, savedQuestions.length);
-    } else if (mode === 'both') {
-      const existingCount = Math.min(savedQuestions.length, Math.floor(questionCount / 2));
-      const newCount = questionCount - existingCount;
-      targetCount = existingCount + newCount;
-    }
 
     setLoadingMessage("Đang tạo bộ câu hỏi..");
     audioCacheRef.current = {};
@@ -810,71 +794,32 @@ const App: React.FC = () => {
 
       let generatedSuccessMessage = "";
 
-      if (mode === 'old') {
-        const shuffled = [...savedQuestions].sort(() => Math.random() - 0.5);
-        initialQuestions = shuffled.slice(0, questionCount).map(q => ({ ...q, isNew: false }));
-      } else if (mode === 'both') {
-        const existingCount = Math.min(savedQuestions.length, Math.floor(questionCount / 2));
-        const shuffled = [...savedQuestions].sort(() => Math.random() - 0.5);
-        const oldQuestions = shuffled.slice(0, existingCount).map(q => ({ ...q, isNew: false }));
-        
-        const newCount = questionCount - existingCount;
-        const result = await generateQuestions(
-          topicToUse, 
-          questionType, 
-          newCount, 
-          contextContent, 
-          quizLevel, 
-          savedQuestions, 
-          knownQuestions,
-          (count, attempt) => setLoadingMessage(`Đang tạo câu hỏi (${oldQuestions.length + count} / ${questionCount})...${attempt && attempt > 0 ? ` [Thử lại lần ${attempt}]` : ""}`),
-          (partialQuestions) => {
-            setQuiz(prev => {
-              const newSessionQuestions = [...oldQuestions, ...partialQuestions];
-              return {
-                ...prev,
-                sessionQuestions: newSessionQuestions,
-                currentQuestion: prev.currentQuestion || newSessionQuestions[0],
-                userAnswers: new Array(newSessionQuestions.length).fill("").map((_, i) => prev.userAnswers[i] !== undefined ? prev.userAnswers[i] : ""),
-                evaluatedResults: new Array(newSessionQuestions.length).fill(null).map((_, i) => prev.evaluatedResults?.[i] !== undefined ? prev.evaluatedResults[i] : null)
-              };
-            });
-          },
-          geminiModel
-        );
-        await trackApiUsage();
-        const newQuestions = result.questions;
-        generatedSuccessMessage = result.successMessage;
-        
-        initialQuestions = [...oldQuestions, ...newQuestions];
-      } else if (mode === 'new') {
-        const result = await generateQuestions(
-          topicToUse, 
-          questionType, 
-          questionCount, 
-          contextContent, 
-          quizLevel, 
-          savedQuestions, 
-          knownQuestions,
-          (count, attempt) => setLoadingMessage(`Đang tạo câu hỏi (${count} / ${questionCount})...${attempt && attempt > 0 ? ` [Thử lại lần ${attempt}]` : ""}`),
-          (partialQuestions) => {
-            setQuiz(prev => {
-              const newSessionQuestions = partialQuestions;
-              return {
-                ...prev,
-                sessionQuestions: newSessionQuestions,
-                currentQuestion: prev.currentQuestion || newSessionQuestions[0],
-                userAnswers: new Array(newSessionQuestions.length).fill("").map((_, i) => prev.userAnswers[i] !== undefined ? prev.userAnswers[i] : ""),
-                evaluatedResults: new Array(newSessionQuestions.length).fill(null).map((_, i) => prev.evaluatedResults?.[i] !== undefined ? prev.evaluatedResults[i] : null)
-              };
-            });
-          },
-          geminiModel
-        );
-        await trackApiUsage();
-        initialQuestions = result.questions;
-        generatedSuccessMessage = result.successMessage;
-      }
+      const result = await generateQuestions(
+        topicToUse, 
+        questionType, 
+        questionCount, 
+        contextContent, 
+        quizLevel, 
+        savedQuestions, 
+        knownQuestions,
+        (count, attempt) => setLoadingMessage(`Đang tạo câu hỏi (${count} / ${questionCount})...${attempt && attempt > 0 ? ` [Thử lại lần ${attempt}]` : ""}`),
+        (partialQuestions) => {
+          setQuiz(prev => {
+            const newSessionQuestions = partialQuestions;
+            return {
+              ...prev,
+              sessionQuestions: newSessionQuestions,
+              currentQuestion: prev.currentQuestion || newSessionQuestions[0],
+              userAnswers: new Array(newSessionQuestions.length).fill("").map((_, i) => prev.userAnswers[i] !== undefined ? prev.userAnswers[i] : ""),
+              evaluatedResults: new Array(newSessionQuestions.length).fill(null).map((_, i) => prev.evaluatedResults?.[i] !== undefined ? prev.evaluatedResults[i] : null)
+            };
+          });
+        },
+        geminiModel
+      );
+      await trackApiUsage();
+      initialQuestions = result.questions;
+      generatedSuccessMessage = result.successMessage;
 
       if (generatedSuccessMessage) {
         setSuccessMessage(generatedSuccessMessage);
@@ -2314,44 +2259,13 @@ const App: React.FC = () => {
             <div className="w-16 h-1 bg-secondary mx-auto mt-6 rounded-full"></div>
           </section>
           <div className="grid grid-cols-1 gap-8">
-            {/* Mode & Level Selection Grid */}
-            <div className="grid xl:grid-cols-2 gap-8">
-              {/* Chế độ ôn tập Card */}
-              <div className="glass-panel p-10 rounded-3xl border-none flex flex-col">
-                <h3 className="text-[11px] font-bold text-on-tertiary-fixed-variant uppercase tracking-widest mb-8 text-center">CHẾ ĐỘ ÔN TẬP</h3>
-                <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                  {[
-                    { id: 'new', label: 'Câu hỏi mới (AI)', icon: PlusCircle },
-                    { id: 'old', label: 'Câu hỏi chưa biết', icon: History },
-                    { id: 'both', label: 'Kết hợp cả hai', icon: BookMarked }
-                  ].map(item => (
-                    <label
-                      key={item.id}
-                      className={`flex-1 flex flex-col items-center justify-center text-center p-4 rounded-xl cursor-pointer shadow-lg active:scale-95 transition-all duration-200 ${
-                        mode === item.id 
-                          ? 'bg-primary text-on-primary shadow-lg' 
-                          : 'bg-surface-container-low/50 backdrop-blur-md text-on-surface-variant hover:bg-surface-container hover:text-primary border border-transparent hover:border-outline-variant/30'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="mode" 
-                        className="hidden" 
-                        checked={mode === item.id}
-                        onChange={() => setMode(item.id as any)}
-                      />
-                      <item.icon className="w-8 h-8 mb-3" />
-                      <span className="font-bold text-sm">{item.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
+            {/* Level Selection Grid */}
+            <div className="grid grid-cols-1 gap-8">
               {/* Mức độ Card */}
               <div className="glass-panel p-10 rounded-3xl border-none flex flex-col">
                 <h3 className="text-[11px] font-bold text-on-tertiary-fixed-variant uppercase tracking-widest mb-8 text-center">MỨC ĐỘ</h3>
-                <div className="flex flex-col gap-4 flex-1 justify-center">
-                  <div className="flex flex-wrap justify-center gap-4">
+                <div className="flex flex-col xl:flex-row gap-3 sm:gap-4 w-full justify-center items-stretch xl:items-center">
+                  <div className="flex flex-row justify-center gap-2 sm:gap-4 w-full xl:w-3/5">
                     {['Ấu nhi', 'Thiếu nhi', 'Nghĩa Sỹ'].map(level => {
                       const colors: Record<string, string> = {
                         'Ấu nhi': 'border-green-500 bg-green-100 text-green-900',
@@ -2362,18 +2276,18 @@ const App: React.FC = () => {
                         <button
                           key={level}
                           onClick={() => setQuizLevel(level as QuizLevel)}
-                          className={`flex-1 min-w-[100px] sm:min-w-[120px] flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all active:scale-95 ${
+                          className={`flex-1 flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all active:scale-95 ${
                             quizLevel === level 
                               ? `${colors[level]} shadow-md` 
                               : 'bg-surface-container-low/50 backdrop-blur-md text-on-surface-variant border-transparent hover:border-outline-variant hover:bg-surface-container'
                           }`}
                         >
-                          <span className="text-[11px] font-bold uppercase tracking-wider">{level}</span>
+                          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-center">{level}</span>
                         </button>
                       );
                     })}
                   </div>
-                  <div className="flex flex-wrap justify-center gap-4">
+                  <div className="flex flex-row justify-center gap-2 sm:gap-4 w-[66.666%] mx-auto xl:mx-0 xl:w-2/5">
                     {['Hiệp Sỹ', 'Huynh Trưởng'].map(level => {
                       const colors: Record<string, string> = {
                         'Hiệp Sỹ': 'border-amber-700 bg-amber-100 text-amber-900',
@@ -2383,13 +2297,13 @@ const App: React.FC = () => {
                         <button
                           key={level}
                           onClick={() => setQuizLevel(level as QuizLevel)}
-                          className={`flex-1 min-w-[100px] sm:min-w-[120px] flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all active:scale-95 ${
+                          className={`flex-1 flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all active:scale-95 ${
                             quizLevel === level 
                               ? `${colors[level]} shadow-md` 
                               : 'bg-surface-container-low/50 backdrop-blur-md text-on-surface-variant border-transparent hover:border-outline-variant hover:bg-surface-container'
                           }`}
                         >
-                          <span className="text-[11px] font-bold uppercase tracking-wider">{level}</span>
+                          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-center">{level}</span>
                         </button>
                       );
                     })}
