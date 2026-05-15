@@ -30,7 +30,8 @@ import {
   Database,
   Volume2,
   VolumeX,
-  LogOut
+  LogOut,
+  Shuffle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -215,6 +216,7 @@ const App: React.FC = () => {
   const [geminiModel, setGeminiModel] = useState<string>('gemini-3.1-flash-lite-preview');
   const [globalApiStats, setGlobalApiStats] = useState<{flash_lite: number, flash: number}>({flash_lite: 0, flash: 0});
   const [isStarted, setIsStarted] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const wasStarted = useRef(false);
   const canSyncQuestionsRef = useRef(false);
   const lastSyncDataRef = useRef<Record<string, any>>({});
@@ -227,7 +229,6 @@ const App: React.FC = () => {
   const [baseFontSize, setBaseFontSize] = useState<number>(typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 14);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [focusedEssayIndex, setFocusedEssayIndex] = useState<number | null>(null);
   
   const defaultProfile: Profile = {
     id: 'default',
@@ -758,7 +759,34 @@ const App: React.FC = () => {
     } catch(e) { console.error(e); }
   };
 
+  const startOfflinePractice = (questions: Question[]) => {
+    if (questions.length === 0) return;
+    
+    // Mix questions
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
+    
+    setIsOfflineMode(true);
+    setQuiz({ 
+      sessionQuestions: shuffled,
+      currentQuestion: shuffled[0],
+      currentIndex: 0,
+      targetQuestionCount: shuffled.length,
+      userAnswers: new Array(shuffled.length).fill(""),
+      evaluatedResults: new Array(shuffled.length).fill(null),
+      essayEvaluations: new Array(shuffled.length).fill(null),
+      isEvaluated: false,
+      userAnswer: "",
+      evaluationResult: "",
+      loading: false,
+      error: null,
+      isSaved: false
+    });
+    
+    setIsStarted(true);
+  };
+
   const startSession = async () => {
+    setIsOfflineMode(false);
     let targetCount = questionCount;
 
     setLoadingMessage("Đang tạo bộ câu hỏi..");
@@ -929,6 +957,30 @@ const App: React.FC = () => {
     }));
   };
 
+  const getEvaluationText = (isCorrect: boolean, question: Question, targetIndex: number, currentQuizState: typeof quiz) => {
+    const hasOptions = question.options && question.options.length > 0;
+    const isMultiSelect = question.type === 'multiple-select' || 
+      (!question.type && hasOptions && question.correctAnswer.includes(',') && 
+       question.correctAnswer.split(',').every(part => /^[A-F](?:[.)\s:]|$)/.test(part.trim().toUpperCase())));
+    
+    const resolvedType = hasOptions ? (isMultiSelect ? 'multiple-select' : 'multiple-choice') : (question.type || questionType);
+    
+    if (resolvedType === 'multiple-choice' || resolvedType === 'multiple-select') {
+      return isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${question.correctAnswer}`;
+    } else {
+      if (isOfflineMode) {
+        return `Bạn hãy tự đánh giá câu trả lời của mình với Đáp án đúng: \n\n${question.correctAnswer}`;
+      } else {
+        const result = currentQuizState.essayEvaluations?.[targetIndex];
+        if (result) {
+          const isExcellent = result.score >= 8;
+          return `${isExcellent ? "Chính xác xuất sắc! (Điểm: " + result.score + "/10)\n\n" : isCorrect ? "Chính xác! (Điểm: " + result.score + "/10)\n\n" : "Chưa đạt nha! (Điểm: " + result.score + "/10)\n\n"}${result.feedback}`;
+        }
+        return `Bạn hãy tự đánh giá câu trả lời của mình với Đáp án đúng: \n\n${question.correctAnswer}`;
+      }
+    }
+  };
+
   const getPreviousQuestion = () => {
     setQuiz(prev => {
       if (prev.currentIndex <= 0) return prev;
@@ -940,12 +992,12 @@ const App: React.FC = () => {
         newAnswers[prev.currentIndex] = prev.userAnswer;
       }
 
-      const isEvaluated = prev.evaluatedResults[prevIndex] !== null;
+      const isEvaluated = prev.evaluatedResults[prevIndex] !== null && prev.evaluatedResults[prevIndex] !== undefined;
       let evaluationResult = "";
       if (isEvaluated) {
         const isCorrect = prev.evaluatedResults[prevIndex];
         const question = prev.sessionQuestions[prevIndex];
-        evaluationResult = isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${question.correctAnswer}`;
+        evaluationResult = getEvaluationText(isCorrect, question, prevIndex, prev);
       }
 
       return {
@@ -964,42 +1016,32 @@ const App: React.FC = () => {
   const goToQuestion = (index: number) => {
     if (index < 0 || index >= quiz.sessionQuestions.length) return;
     
-    if (questionType === 'multiple-choice' || questionType === 'multiple-select') {
-      setQuiz(prev => {
-        // Save current answer if not evaluated
-        const newAnswers = [...prev.userAnswers];
-        if (!prev.isEvaluated && prev.currentIndex !== -1) {
-          newAnswers[prev.currentIndex] = prev.userAnswer;
-        }
-
-        const isEvaluated = prev.evaluatedResults[index] !== null;
-        let evaluationResult = "";
-        if (isEvaluated) {
-          const isCorrect = prev.evaluatedResults[index];
-          const question = prev.sessionQuestions[index];
-          evaluationResult = isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${question.correctAnswer}`;
-        }
-
-        return {
-          ...prev,
-          currentIndex: index,
-          currentQuestion: prev.sessionQuestions[index],
-          isEvaluated: isEvaluated,
-          userAnswer: newAnswers[index] || "",
-          userAnswers: newAnswers,
-          evaluationResult: evaluationResult,
-          isSaved: false,
-        };
-      });
-    } else {
-      // For essay questions, scroll to the question
-      const element = document.getElementById(`essay-question-${index}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const textarea = element.querySelector('textarea');
-        if (textarea) textarea.focus();
+    setQuiz(prev => {
+      // Save current answer if not evaluated
+      const newAnswers = [...prev.userAnswers];
+      if (!prev.isEvaluated && prev.currentIndex !== -1) {
+        newAnswers[prev.currentIndex] = prev.userAnswer;
       }
-    }
+
+      const isEvaluated = prev.evaluatedResults[index] !== null && prev.evaluatedResults[index] !== undefined;
+      let evaluationResult = "";
+      if (isEvaluated) {
+        const isCorrect = prev.evaluatedResults[index];
+        const question = prev.sessionQuestions[index];
+        evaluationResult = getEvaluationText(isCorrect, question, index, prev);
+      }
+
+      return {
+        ...prev,
+        currentIndex: index,
+        currentQuestion: prev.sessionQuestions[index],
+        isEvaluated: isEvaluated,
+        userAnswer: newAnswers[index] || "",
+        userAnswers: newAnswers,
+        evaluationResult: evaluationResult,
+        isSaved: false,
+      };
+    });
   };
 
   const getNextQuestion = () => {
@@ -1022,12 +1064,12 @@ const App: React.FC = () => {
         newAnswers[prev.currentIndex] = prev.userAnswer;
       }
 
-      const isEvaluated = prev.evaluatedResults[nextIndex] !== null;
+      const isEvaluated = prev.evaluatedResults[nextIndex] !== null && prev.evaluatedResults[nextIndex] !== undefined;
       let evaluationResult = "";
       if (isEvaluated) {
         const isCorrect = prev.evaluatedResults[nextIndex];
         const question = prev.sessionQuestions[nextIndex];
-        evaluationResult = isCorrect ? "Chính xác!" : `Sai rồi. Đáp án đúng là: ${question.correctAnswer}`;
+        evaluationResult = getEvaluationText(isCorrect, question, nextIndex, prev);
       }
 
       return {
@@ -1046,8 +1088,16 @@ const App: React.FC = () => {
   const handleAnswerSubmit = async () => {
     setQuiz(prev => ({ ...prev, loading: true }));
 
+    const hasOptions = quiz.currentQuestion?.options && quiz.currentQuestion.options.length > 0;
+    const isMultiSelect = quiz.currentQuestion?.type === 'multiple-select' || 
+      (!quiz.currentQuestion?.type && hasOptions && quiz.currentQuestion?.correctAnswer.includes(',') && 
+       quiz.currentQuestion.correctAnswer.split(',').every(part => /^[A-F](?:[.)\s:]|$)/.test(part.trim().toUpperCase())));
+    
+    const resolvedType = hasOptions ? (isMultiSelect ? 'multiple-select' : 'multiple-choice') : (quiz.currentQuestion?.type || questionType);
+    const currentQType = resolvedType;
+
     try {
-      if (questionType === 'multiple-choice' || questionType === 'multiple-select') {
+      if (currentQType === 'multiple-choice' || currentQType === 'multiple-select') {
         if (!quiz.currentQuestion || !quiz.userAnswer) {
           setQuiz(prev => ({ ...prev, loading: false }));
           return;
@@ -1055,7 +1105,7 @@ const App: React.FC = () => {
         
         let isCorrect = false;
 
-        if (questionType === 'multiple-select') {
+        if (currentQType === 'multiple-select') {
           const userAnsArray = quiz.userAnswer.split(',').map(s => s.trim().toUpperCase()).sort();
           const rawCorrectAns = quiz.currentQuestion.correctAnswer.trim().toUpperCase();
           
@@ -1123,27 +1173,65 @@ const App: React.FC = () => {
           };
         });
       } else {
-        const qaList = quiz.sessionQuestions.map((q, i) => ({
-          question: q.question,
-          correctAnswer: q.correctAnswer,
-          userAnswer: quiz.userAnswers[i] || "Không trả lời"
-        }));
-        const results = await evaluateAllEssayAnswers(qaList, geminiModel, (attempt) => {
-          setQuiz(prev => ({ ...prev, loadingMsg: `[Thử lại lần ${attempt}] Đang tiếp tục chấm điểm...` }));
-        });
-        await trackApiUsage();
-        const newEvaluatedResults = results.map(r => r.score >= 5);
-        setQuiz(prev => ({ 
-          ...prev, 
-          isEvaluated: true, 
-          essayEvaluations: results,
-          evaluatedResults: newEvaluatedResults,
-          loading: false 
-        }));
-        // Auto scroll to top of questions after evaluation
-        setTimeout(() => {
-          questionTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
+        // Essay Questions
+        if (isOfflineMode) {
+          setQuiz(prev => {
+            const newAnswers = [...prev.userAnswers];
+            newAnswers[prev.currentIndex] = quiz.userAnswer;
+            const newEvaluatedResults = [...prev.evaluatedResults];
+            newEvaluatedResults[prev.currentIndex] = true; // offline treat as correct to let them view
+            return {
+              ...prev,
+              isEvaluated: true,
+              evaluationResult: `Bạn hãy tự đánh giá câu trả lời của mình với Đáp án đúng: \n\n${quiz.currentQuestion?.correctAnswer}`,
+              loading: false,
+              userAnswers: newAnswers,
+              evaluatedResults: newEvaluatedResults
+            };
+          });
+          
+          setTimeout(() => {
+            evaluationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        } else {
+          const qaList = [{
+            question: quiz.currentQuestion!.question,
+            correctAnswer: quiz.currentQuestion!.correctAnswer,
+            userAnswer: quiz.userAnswer || "Không trả lời"
+          }];
+          
+          const results = await evaluateAllEssayAnswers(qaList, geminiModel, (attempt) => {
+            setQuiz(prev => ({ ...prev, loadingMsg: `[Thử lại lần ${attempt}] Đang tiếp tục chấm điểm...` }));
+          });
+          await trackApiUsage();
+          
+          const result = results[0];
+          const isCorrect = result.score >= 5;
+          const isExcellent = result.score >= 8;
+          
+          setQuiz(prev => {
+            const newAnswers = [...prev.userAnswers];
+            newAnswers[prev.currentIndex] = quiz.userAnswer;
+            const newEvaluatedResults = [...prev.evaluatedResults];
+            newEvaluatedResults[prev.currentIndex] = isCorrect;
+            const newEssayEvaluations = [...(prev.essayEvaluations || [])];
+            newEssayEvaluations[prev.currentIndex] = result;
+            
+            return {
+              ...prev,
+              isEvaluated: true,
+              evaluationResult: `${isExcellent ? "Chính xác xuất sắc! (Điểm: " + result.score + "/10)\n\n" : isCorrect ? "Chính xác! (Điểm: " + result.score + "/10)\n\n" : "Chưa đạt nha! (Điểm: " + result.score + "/10)\n\n"}${result.feedback}`,
+              loading: false,
+              userAnswers: newAnswers,
+              evaluatedResults: newEvaluatedResults,
+              essayEvaluations: newEssayEvaluations
+            };
+          });
+          
+          setTimeout(() => {
+            evaluationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        }
       }
     } catch (err: any) {
       const msg = err?.message || String(err);
@@ -2006,7 +2094,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-4 block">Giải thích Thần học</label>
+                    <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-4 block">Giải thích</label>
                     <div className="prose prose-lg max-w-none italic text-on-surface/90 leading-relaxed bg-surface-container-low/50 backdrop-blur-md p-6 rounded-2xl border border-outline-variant/10">
                       <ReactMarkdown>{selectedDetailQuestion.explanation}</ReactMarkdown>
                     </div>
@@ -2141,9 +2229,7 @@ const App: React.FC = () => {
                 const isGenerating = idx >= quiz.sessionQuestions.length;
                 const isAnswered = !!quiz.userAnswers[idx]?.trim();
                 const evaluationResult = quiz.evaluatedResults[idx];
-                const isCurrent = (questionType === 'multiple-choice' || questionType === 'multiple-select')
-                  ? idx === quiz.currentIndex 
-                  : idx === focusedEssayIndex;
+                const isCurrent = idx === quiz.currentIndex;
                 
                 let bgColor = "bg-outline-variant/30";
                 if (isGenerating) bgColor = "bg-tertiary/30 animate-pulse";
@@ -2571,7 +2657,16 @@ const App: React.FC = () => {
                       className="overflow-hidden"
                     >
                       {savedQuestions.length > 0 && (
-                        <div className="flex justify-end mt-8">
+                        <div className="flex justify-between items-center gap-3 mt-8">
+                          <button 
+                            onClick={() => {
+                              setIsSavedQuestionsOpen(false);
+                              startOfflinePractice(savedQuestions);
+                            }}
+                            className="text-primary text-[11px] bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-lg font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                          >
+                            <Shuffle className="w-3 h-3" /> Làm bài
+                          </button>
                           <button 
                             onClick={() => setConfirmModal({
                               isOpen: true,
@@ -2686,7 +2781,16 @@ const App: React.FC = () => {
                       className="overflow-hidden"
                     >
                       {knownQuestions.length > 0 && (
-                        <div className="flex justify-end mt-8">
+                        <div className="flex justify-between items-center gap-3 mt-8">
+                          <button 
+                            onClick={() => {
+                              setIsKnownQuestionsOpen(false);
+                              startOfflinePractice(knownQuestions);
+                            }}
+                            className="text-primary text-[11px] bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-lg font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                          >
+                            <Shuffle className="w-3 h-3" /> Làm bài
+                          </button>
                           <button 
                             onClick={() => setConfirmModal({
                               isOpen: true,
@@ -2883,7 +2987,7 @@ const App: React.FC = () => {
                     </>
                   )}
                 </motion.div>
-              ) : (questionType === 'multiple-choice' || questionType === 'multiple-select') ? (
+              ) : (
                 <motion.div 
                   key={quiz.currentQuestion.question}
                   initial={{ opacity: 0, x: 20 }}
@@ -2891,122 +2995,153 @@ const App: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="glass-panel p-8 md:p-12 rounded-[40px] shadow-[0_8px_32px_rgba(0,0,0,0.03)] border border-outline-variant/10 flex flex-col h-full"
                 >
-                  <div className="flex justify-between items-start mb-6 lg:mb-10 gap-4 flex-col sm:flex-row">
-                    <span className={`px-4 py-1.5 rounded-full text-[11px] uppercase tracking-widest font-bold shadow-sm ${
-                      quiz.currentQuestion.isNew ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary'
-                    }`}>
-                      {quiz.currentQuestion.isNew ? 'Câu hỏi mới' : 'Câu hỏi cũ'}
-                    </span>
-                    <span className="text-[11px] font-bold text-outline uppercase tracking-widest sm:text-right">{quiz.currentQuestion.topic}</span>
-                  </div>
-
-                  <div className="text-xl md:text-2xl font-bold leading-relaxed mb-12 text-on-surface">
-                    <ReactMarkdown>{quiz.currentQuestion.question}</ReactMarkdown>
-                    {questionType === 'multiple-select' && (
-                      <p className="text-sm text-primary mt-4 font-normal italic">* Câu hỏi này có thể có nhiều đáp án đúng. Hãy chọn tất cả các đáp án bạn cho là đúng.</p>
-                    )}
-                  </div>
-
-                  <div className="flex-grow space-y-5 mb-12">
-                    <div className="grid grid-cols-1 gap-4">
-                      {quiz.currentQuestion.options?.map((option, idx) => {
-                        const letter = String.fromCharCode(65 + idx);
-                        const isSelected = questionType === 'multiple-select' 
-                          ? quiz.userAnswer.split(',').map(s => s.trim()).includes(letter)
-                          : quiz.userAnswer === letter;
-                        
-                        let isCorrectOption = false;
-                        if (quiz.isEvaluated && questionType === 'multiple-select') {
-                          const correctAnsUpper = quiz.currentQuestion.correctAnswer.trim().toUpperCase();
-                          const correctAnsArray = correctAnsUpper.split(',').map(s => {
-                            const match = s.trim().match(/^[A-F]/);
-                            return match ? match[0] : '';
-                          }).filter(Boolean);
-                          isCorrectOption = correctAnsArray.includes(letter);
-                        }
-
-                        let buttonClass = `text-left p-6 rounded-2xl border-2 transition-all flex items-center gap-6 text-base font-medium active:scale-[0.98] `;
-                        
-                        if (isSelected) {
-                          buttonClass += `bg-primary text-on-primary shadow-lg scale-[1.02] `;
-                          if (isCorrectOption) {
-                            buttonClass += `!border-green-500`;
-                          } else {
-                            buttonClass += `border-primary `;
-                          }
-                        } else {
-                          buttonClass += `bg-surface-container-low/50 backdrop-blur-md hover:bg-surface-container text-on-surface `;
-                          if (isCorrectOption) {
-                            buttonClass += `!border-green-500`;
-                          } else {
-                            buttonClass += `border-transparent hover:border-outline-variant/30 `;
-                          }
-                        }
-
-                        if (quiz.isEvaluated) {
-                           buttonClass += `opacity-90 cursor-default active:scale-100 `;
-                        }
-
-                        return (
-                          <button
-                            key={idx}
-                            disabled={quiz.isEvaluated}
-                            onClick={() => {
-                              if (questionType === 'multiple-select') {
-                                setQuiz(prev => {
-                                  const currentAnswers = prev.userAnswer ? prev.userAnswer.split(',').map(s => s.trim()).filter(Boolean) : [];
-                                  if (currentAnswers.includes(letter)) {
-                                    return { ...prev, userAnswer: currentAnswers.filter(a => a !== letter).sort().join(', ') };
-                                  } else {
-                                    return { ...prev, userAnswer: [...currentAnswers, letter].sort().join(', ') };
-                                  }
-                                });
-                              } else {
-                                setQuiz(prev => ({ ...prev, userAnswer: letter }));
-                              }
-                            }}
-                            className={buttonClass}
-                          >
-                            <span className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shrink-0 ${
-                              isSelected ? 'bg-white/20' : 'glass-panel text-primary border border-outline-variant/30'
-                            }`}>
-                              {questionType === 'multiple-select' ? (
-                                isSelected ? <CheckSquare className="w-6 h-6" /> : letter
-                              ) : letter}
-                            </span>
-                            <div className="flex-1">
-                              <ReactMarkdown>{option}</ReactMarkdown>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {quiz.isEvaluated && (
-                    <motion.div 
-                      ref={evaluationRef}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`p-10 rounded-[32px] mb-10 shadow-sm ${
-                        quiz.evaluationResult.startsWith("Chính xác") ? 'bg-green-50 text-green-900 border border-green-200' : 'bg-red-50 text-red-900 border border-red-200'
-                      }`}
-                    >
-                      <h4 className="text-lg font-bold mb-6 flex items-center gap-3">
-                        {quiz.evaluationResult.startsWith("Chính xác") ? <CheckCircle2 className="w-8 h-8 text-green-600" /> : <AlertCircle className="w-8 h-8 text-red-600" />}
-                        Kết quả đánh giá
-                      </h4>
-                      <div className="prose prose-lg max-w-none mb-8 text-current">
-                        <ReactMarkdown>{quiz.evaluationResult}</ReactMarkdown>
-                      </div>
-                      <div className="pt-8 border-t border-current/10">
-                        <p className="text-[11px] font-bold mb-4 uppercase tracking-[0.2em] opacity-60">Giải thích Thần học:</p>
-                        <div className="prose prose-lg max-w-none italic text-current leading-relaxed">
-                          <ReactMarkdown>{quiz.currentQuestion.explanation}</ReactMarkdown>
+                  {(() => {
+                    const hasOptions = quiz.currentQuestion.options && quiz.currentQuestion.options.length > 0;
+                    const isMultiSelect = quiz.currentQuestion.type === 'multiple-select' || 
+                      (!quiz.currentQuestion.type && hasOptions && quiz.currentQuestion.correctAnswer.includes(',') && 
+                       quiz.currentQuestion.correctAnswer.split(',').every(part => /^[A-F](?:[.)\s:]|$)/.test(part.trim().toUpperCase())));
+                    
+                    const resolvedType = hasOptions ? (isMultiSelect ? 'multiple-select' : 'multiple-choice') : (quiz.currentQuestion.type || questionType);
+                    const currentQType = resolvedType;
+                    return (
+                      <>
+                        <div className="flex justify-between items-start mb-6 lg:mb-10 gap-4 flex-col sm:flex-row">
+                          <span className={`px-4 py-1.5 rounded-full text-[11px] uppercase tracking-widest font-bold shadow-sm ${
+                            quiz.currentQuestion.isNew ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary'
+                          }`}>
+                            {quiz.currentQuestion.isNew ? 'Câu hỏi mới' : 'Câu hỏi cũ'}
+                          </span>
+                          <span className="text-[11px] font-bold text-outline uppercase tracking-widest sm:text-right">{quiz.currentQuestion.topic}</span>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
+
+                        <div className="text-xl md:text-2xl font-bold leading-relaxed mb-12 text-on-surface">
+                          <ReactMarkdown>{quiz.currentQuestion.question}</ReactMarkdown>
+                          {currentQType === 'multiple-select' && (
+                            <p className="text-sm text-primary mt-4 font-normal italic">* Câu hỏi này có thể có nhiều đáp án đúng. Hãy chọn tất cả các đáp án bạn cho là đúng.</p>
+                          )}
+                        </div>
+
+                        <div className="flex-grow space-y-5 mb-12">
+                          {(currentQType === 'short-essay' || currentQType === 'long-essay') ? (
+                            <EssayTextArea
+                              disabled={quiz.isEvaluated}
+                              value={quiz.userAnswer}
+                              onBlur={() => {}}
+                              onFocus={() => {}}
+                              onChange={(val) => {
+                                setQuiz(prev => ({ ...prev, userAnswer: val }));
+                              }}
+                              placeholder="Nhập câu trả lời của bạn tại đây..."
+                              className="w-full h-40 bg-surface-container-low/50 backdrop-blur-md border-2 border-transparent focus:border-primary/20 rounded-2xl p-6 text-base focus:ring-4 focus:ring-primary/5 outline-none resize-none shadow-inner text-on-surface"
+                            />
+                          ) : (
+                            <div className="grid grid-cols-1 gap-4">
+                              {quiz.currentQuestion.options?.map((option, idx) => {
+                                const letter = String.fromCharCode(65 + idx);
+                                const isSelected = currentQType === 'multiple-select' 
+                                  ? quiz.userAnswer.split(',').map(s => s.trim()).includes(letter)
+                                  : quiz.userAnswer === letter;
+                                
+                                let isCorrectOption = false;
+                                if (quiz.isEvaluated && currentQType === 'multiple-select') {
+                                  const correctAnsUpper = quiz.currentQuestion!.correctAnswer.trim().toUpperCase();
+                                  const correctAnsArray = correctAnsUpper.split(',').map(s => {
+                                    const match = s.trim().match(/^[A-F]/);
+                                    return match ? match[0] : '';
+                                  }).filter(Boolean);
+                                  isCorrectOption = correctAnsArray.includes(letter);
+                                }
+
+                                let buttonClass = `text-left p-6 rounded-2xl border-2 transition-all flex items-center gap-6 text-base font-medium active:scale-[0.98] `;
+                                
+                                if (isSelected) {
+                                  buttonClass += `bg-primary text-on-primary shadow-lg scale-[1.02] `;
+                                  if (isCorrectOption) {
+                                    buttonClass += `!border-green-500`;
+                                  } else {
+                                    buttonClass += `border-primary `;
+                                  }
+                                } else {
+                                  buttonClass += `bg-surface-container-low/50 backdrop-blur-md hover:bg-surface-container text-on-surface `;
+                                  if (isCorrectOption) {
+                                    buttonClass += `!border-green-500`;
+                                  } else {
+                                    buttonClass += `border-transparent hover:border-outline-variant/30 `;
+                                  }
+                                }
+
+                                if (quiz.isEvaluated) {
+                                   buttonClass += `opacity-90 cursor-default active:scale-100 `;
+                                }
+
+                                return (
+                                  <button
+                                    key={idx}
+                                    disabled={quiz.isEvaluated}
+                                    onClick={() => {
+                                      if (currentQType === 'multiple-select') {
+                                        setQuiz(prev => {
+                                          const currentAnswers = prev.userAnswer ? prev.userAnswer.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                          if (currentAnswers.includes(letter)) {
+                                            return { ...prev, userAnswer: currentAnswers.filter(a => a !== letter).sort().join(', ') };
+                                          } else {
+                                            return { ...prev, userAnswer: [...currentAnswers, letter].sort().join(', ') };
+                                          }
+                                        });
+                                      } else {
+                                        setQuiz(prev => ({ ...prev, userAnswer: letter }));
+                                      }
+                                    }}
+                                    className={buttonClass}
+                                  >
+                                    <span className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shrink-0 ${
+                                      isSelected ? 'bg-white/20' : 'glass-panel text-primary border border-outline-variant/30'
+                                    }`}>
+                                      {currentQType === 'multiple-select' ? (
+                                        isSelected ? <CheckSquare className="w-6 h-6" /> : letter
+                                      ) : letter}
+                                    </span>
+                                    <div className="flex-1">
+                                      <ReactMarkdown>{option}</ReactMarkdown>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {quiz.isEvaluated && (
+                          <motion.div 
+                            ref={evaluationRef}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`p-10 rounded-[32px] mb-10 shadow-sm ${
+                              quiz.evaluationResult.startsWith("Chính xác") ? 'bg-green-50 text-green-900 border border-green-200' : 
+                              quiz.evaluationResult.startsWith("Kỳ vọng") || quiz.evaluationResult.startsWith("Bạn hãy tự đánh giá") ? 'bg-secondary/10 text-on-surface border border-secondary/20' : 'bg-red-50 text-red-900 border border-red-200'
+                            }`}
+                          >
+                            <h4 className="text-lg font-bold mb-6 flex items-center gap-3">
+                              {quiz.evaluationResult.startsWith("Chính xác") ? <CheckCircle2 className="w-8 h-8 text-green-600" /> : 
+                               quiz.evaluationResult.startsWith("Kỳ vọng") || quiz.evaluationResult.startsWith("Bạn hãy tự đánh giá") ? <Award className="w-8 h-8 text-secondary" /> : <AlertCircle className="w-8 h-8 text-red-600" />}
+                              Kết quả đánh giá
+                            </h4>
+                            <div className="prose prose-lg max-w-none mb-8 text-current">
+                              <ReactMarkdown>{quiz.evaluationResult}</ReactMarkdown>
+                            </div>
+                            <div className="pt-8 border-t border-current/10">
+                              <p className="text-[11px] font-bold mb-4 uppercase tracking-[0.2em] opacity-60">Giải thích:</p>
+                              <div className="prose prose-lg max-w-none italic text-current leading-relaxed">
+                                <ReactMarkdown>{quiz.currentQuestion.explanation}</ReactMarkdown>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+
+                      </>
+                    );
+                  })()}
 
                   <div className="flex flex-col gap-5">
                     <div className="flex flex-col sm:flex-row gap-5">
@@ -3014,7 +3149,10 @@ const App: React.FC = () => {
                         <button
                           ref={submitBtnRef}
                           onClick={handleAnswerSubmit}
-                          disabled={!quiz.userAnswer || quiz.loading}
+                          disabled={(!quiz.userAnswer && !(
+                            (quiz.currentQuestion?.options == null || quiz.currentQuestion.options.length === 0) &&
+                            (quiz.currentQuestion?.type === 'short-essay' || quiz.currentQuestion?.type === 'long-essay' || questionType === 'short-essay' || questionType === 'long-essay')
+                          )) || quiz.loading}
                           className="flex-1 bg-primary text-on-primary shadow-lg py-4 md:py-6 rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:neon-glow-none text-sm md:text-base relative overflow-hidden"
                         >
                           <div className="relative flex items-center justify-center gap-3 w-full">
@@ -3103,147 +3241,6 @@ const App: React.FC = () => {
                           <ChevronRight className="w-5 h-5" />
                         </button>
                       </div>
-                    )}
-                  </div>
-                  
-                  {quiz.error && (
-                    <p id="error-msg" className="mt-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl">
-                      <AlertCircle className="w-5 h-5" /> {quiz.error}
-                    </p>
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="essay-batch"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="glass-panel p-8 md:p-12 rounded-[40px] shadow-[0_8px_32px_rgba(0,0,0,0.03)] border border-outline-variant/10 flex flex-col h-full"
-                >
-                  <div className="flex justify-between items-start mb-10">
-                    <div className="flex flex-col gap-2 w-full">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[11px] font-bold text-outline uppercase tracking-widest">
-                          Bài tập tự luận ({questionType === 'short-essay' ? 'Ngắn' : 'Dài'})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-12">
-                    {quiz.sessionQuestions.map((q, idx) => (
-                      <div key={idx} id={`essay-question-${idx}`} className="space-y-6 scroll-mt-32">
-                        <div className="flex items-start gap-4">
-                          <span className="flex-shrink-0 w-10 h-10 bg-primary text-on-primary rounded-full flex items-center justify-center font-bold text-lg">
-                            {idx + 1}
-                          </span>
-                          <div className="text-xl font-bold leading-relaxed text-on-surface mt-1">
-                            <ReactMarkdown>{q.question}</ReactMarkdown>
-                          </div>
-                        </div>
-                        
-                        <EssayTextArea
-                          disabled={quiz.isEvaluated}
-                          value={quiz.userAnswers[idx] || ''}
-                          onFocus={(e) => {
-                            e.target.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            setFocusedEssayIndex(idx);
-                            playText(getQuestionTextToRead(q, questionType), idx);
-                          }}
-                          onBlur={() => setFocusedEssayIndex(null)}
-                          onChange={(val) => {
-                            setQuiz(prev => {
-                              const newAnswers = [...prev.userAnswers];
-                              newAnswers[idx] = val;
-                              return { ...prev, userAnswers: newAnswers };
-                            });
-                          }}
-                          placeholder="Nhập câu trả lời của bạn tại đây..."
-                          className="w-full h-40 bg-surface-container-low/50 backdrop-blur-md border-2 border-transparent focus:border-primary/20 rounded-2xl p-6 text-base focus:ring-4 focus:ring-primary/5 outline-none resize-none shadow-inner text-on-surface"
-                        />
-
-                        {quiz.isEvaluated && quiz.essayEvaluations[idx] && (
-                          <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-8 rounded-[32px] bg-secondary/10 text-on-surface border border-secondary/20"
-                          >
-                            <div className="flex justify-between items-center mb-4">
-                              <div className="flex items-center gap-4">
-                                <h4 className="text-lg font-bold flex items-center gap-3">
-                                  <Award className="w-6 h-6" />
-                                  Điểm: {quiz.essayEvaluations[idx].score}/10
-                                </h4>
-                                <button
-                                  onClick={() => saveEssayQuestion(idx)}
-                                  className={`p-2 rounded-lg transition-all active:scale-95 ${
-                                    savedQuestions.some(sq => sq.question === q.question && sq.topic === q.topic)
-                                      ? "bg-orange-100 text-orange-600"
-                                      : "bg-surface-container-low/50 backdrop-blur-md text-outline hover:text-orange-500 hover:bg-orange-50"
-                                  }`}
-                                  title="Lưu vào Chưa biết"
-                                >
-                                  <Save className="w-5 h-5" />
-                                </button>
-                                <button
-                                  onClick={() => saveEssayToKnown(idx)}
-                                  className={`p-2 rounded-lg transition-all active:scale-95 ${
-                                    knownQuestions.some(kq => kq.question === q.question && kq.topic === q.topic)
-                                      ? "bg-green-100 text-green-600"
-                                      : "bg-surface-container-low/50 backdrop-blur-md text-outline hover:text-green-500 hover:bg-green-50"
-                                  }`}
-                                  title="Lưu vào Đã biết"
-                                >
-                                  <CheckCircle2 className="w-5 h-5" />
-                                </button>
-                              </div>
-                              <button
-                                onClick={() => setExpandedExplanations(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                className="text-sm font-bold text-secondary hover:underline flex items-center gap-2 active:scale-95 transition-transform"
-                              >
-                                {expandedExplanations[idx] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                Giải thích thêm
-                              </button>
-                            </div>
-                            
-                            {expandedExplanations[idx] && (
-                              <div className="pt-6 border-t border-secondary/20 mt-4">
-                                <div className="prose prose-lg max-w-none text-current">
-                                  <ReactMarkdown>{quiz.essayEvaluations[idx].feedback}</ReactMarkdown>
-                                </div>
-                                <div className="mt-6 pt-6 border-t border-secondary/20">
-                                  <p className="text-[11px] font-bold mb-4 uppercase tracking-[0.2em] opacity-60">Đáp án gợi ý:</p>
-                                  <div className="prose prose-lg max-w-none italic text-current leading-relaxed">
-                                    <ReactMarkdown>{q.explanation}</ReactMarkdown>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </motion.div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-12 flex flex-col sm:flex-row gap-5">
-                    {!quiz.isEvaluated ? (
-                      <button
-                        ref={submitBtnRef}
-                        onClick={handleAnswerSubmit}
-                        disabled={quiz.loading}
-                        className="flex-1 bg-primary text-on-primary py-6 rounded-2xl font-bold hover:opacity-90 active:scale-[0.98] active:bg-primary/90 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:active:scale-100 text-base"
-                      >
-                        {quiz.loading ? <RefreshCw className="w-7 h-7 animate-spin" /> : <CheckCircle2 className="w-7 h-7" />}
-                        {quiz.loading ? (quiz.loadingMsg || "Đang chấm điểm...") : "Kiểm tra đáp án"}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={finishQuiz}
-                        className="flex-1 bg-primary text-on-primary py-6 rounded-2xl font-bold hover:opacity-90 active:scale-[0.98] active:bg-primary/90 transition-all shadow-xl flex items-center justify-center gap-3 text-base"
-                      >
-                        <RefreshCw className="w-7 h-7" />
-                        Hoàn thành & Quay lại
-                      </button>
                     )}
                   </div>
                   
