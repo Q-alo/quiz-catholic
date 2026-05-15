@@ -2185,7 +2185,7 @@ const App: React.FC = () => {
               <div className="hidden md:block w-px h-4 bg-outline-variant/30"></div>
               <button
                  onClick={async () => { await logout(); }}
-                 className="hidden md:block text-xs text-error font-bold hover:underline whitespace-nowrap"
+                 className="hidden md:flex items-center gap-1.5 text-xs text-error font-bold hover:bg-error/10 px-3 py-1.5 rounded-full transition-colors whitespace-nowrap active:scale-95"
               >
                 Đăng xuất
               </button>
@@ -2579,7 +2579,7 @@ const App: React.FC = () => {
                               message: 'Bạn có chắc chắn muốn xóa tất cả câu hỏi trong kho "Chưa biết"? Hành động này không thể hoàn tác.',
                               onConfirm: clearSavedQuestions
                             })}
-                            className="text-error text-[11px] font-bold uppercase tracking-widest flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
+                            className="text-error text-[11px] bg-error/10 hover:bg-error/20 px-4 py-2 rounded-lg font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                           >
                             <Trash2 className="w-3 h-3" /> Xoá tất cả
                           </button>
@@ -2694,7 +2694,7 @@ const App: React.FC = () => {
                               message: 'Bạn có chắc chắn muốn xóa tất cả câu hỏi trong kho "Đã biết"? Hành động này không thể hoàn tác.',
                               onConfirm: clearKnownQuestions
                             })}
-                            className="text-error text-[11px] font-bold uppercase tracking-widest flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
+                            className="text-error text-[11px] bg-error/10 hover:bg-error/20 px-4 py-2 rounded-lg font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                           >
                             <Trash2 className="w-3 h-3" /> Xoá tất cả
                           </button>
