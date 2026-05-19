@@ -992,8 +992,10 @@ const App: React.FC = () => {
       const prevIndex = prev.currentIndex - 1;
       
       // Save current answer if not evaluated
+      const currentQType = prev.sessionQuestions[0]?.type || questionType;
+      const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
       const newAnswers = [...prev.userAnswers];
-      if (!prev.isEvaluated) {
+      if (!prev.isEvaluated && !isMultiQuestionEssayMode) {
         newAnswers[prev.currentIndex] = prev.userAnswer;
       }
 
@@ -1021,19 +1023,20 @@ const App: React.FC = () => {
   const goToQuestion = (index: number) => {
     if (index < 0 || index >= quiz.sessionQuestions.length) return;
     
-    // Smooth scroll for multi-question essay mode
-    const currentQType = quiz.sessionQuestions[0]?.type || questionType;
-    const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
-    if (isMultiQuestionEssayMode) {
+    const essayQuestionElement = document.getElementById(`question-${index}`);
+    if (essayQuestionElement) {
       setTimeout(() => {
-        document.getElementById(`question-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        essayQuestionElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     }
     
     setQuiz(prev => {
-      // Save current answer if not evaluated
+      const currentQType = prev.sessionQuestions[0]?.type || questionType;
+      const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
+      
+      // Save current answer if not evaluated and NOT in multi-essay mode (because multi-essay mode updates userAnswers directly)
       const newAnswers = [...prev.userAnswers];
-      if (!prev.isEvaluated && prev.currentIndex !== -1) {
+      if (!prev.isEvaluated && prev.currentIndex !== -1 && !isMultiQuestionEssayMode) {
         newAnswers[prev.currentIndex] = prev.userAnswer;
       }
 
@@ -1073,8 +1076,10 @@ const App: React.FC = () => {
       const nextIndex = prev.currentIndex + 1;
       
       // Save current answer if not evaluated
+      const currentQType = prev.sessionQuestions[0]?.type || questionType;
+      const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
       const newAnswers = [...prev.userAnswers];
-      if (!prev.isEvaluated) {
+      if (!prev.isEvaluated && !isMultiQuestionEssayMode) {
         newAnswers[prev.currentIndex] = prev.userAnswer;
       }
 
@@ -3095,14 +3100,14 @@ const App: React.FC = () => {
                             const essayResult = quiz.essayEvaluations?.[idx];
                             const isExcellent = essayResult && essayResult.score >= 8;
                             return (
-                              <div key={idx} id={`question-${idx}`} className="border-b border-outline-variant/20 pb-12 last:border-0 last:pb-0">
+                              <div key={idx} id={`question-${idx}`} className="scroll-mt-24 border-b border-outline-variant/20 pb-12 last:border-0 last:pb-0">
                                 <div className="flex justify-between items-start mb-6 gap-4 flex-col sm:flex-row">
                                   <span className={`px-4 py-1.5 rounded-full text-[11px] uppercase tracking-widest font-bold shadow-sm ${
                                     q.isNew ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary'
                                   }`}>
-                                    {q.isNew ? 'Câu hỏi mới' : 'Câu hỏi cũ'}
+                                    Câu {idx + 1}
                                   </span>
-                                  <span className="text-[11px] font-bold text-outline uppercase tracking-widest sm:text-right">Câu {idx + 1} - {q.topic}</span>
+                                  <span className="text-[11px] font-bold text-outline uppercase tracking-widest sm:text-right">{q.topic}</span>
                                 </div>
                                 
                                 <div className="text-xl md:text-2xl font-bold leading-relaxed mb-8 text-on-surface">
