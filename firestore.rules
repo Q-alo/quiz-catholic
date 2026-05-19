@@ -30,7 +30,9 @@ service cloud.firestore {
                 (!('backupData' in data) || data.backupData == null || data.backupData is string) &&
                 (!('storageUsedBytes' in data) || data.storageUsedBytes == null || data.storageUsedBytes is number) &&
                 (!('dailyGeminiCalls' in data) || data.dailyGeminiCalls == null || data.dailyGeminiCalls is number) &&
-                (!('recentApiTimestamps' in data) || data.recentApiTimestamps == null || data.recentApiTimestamps is list)
+                (!('recentApiTimestamps' in data) || data.recentApiTimestamps == null || data.recentApiTimestamps is list) &&
+                (!('dbData' in data) || data.dbData == null || data.dbData is map) &&
+                (!('canSyncQuestions' in data) || data.canSyncQuestions == null || data.canSyncQuestions is bool)
              );
     }
 
@@ -43,7 +45,8 @@ service cloud.firestore {
                     && isValidUser(incoming())
                     && incoming().diff(resource.data).affectedKeys().hasOnly([
                       'email', 'lastLoginAt', 'backupData', 'updatedAt', 
-                      'storageUsedBytes', 'dailyGeminiCalls', 'recentApiTimestamps'
+                      'storageUsedBytes', 'dailyGeminiCalls', 'recentApiTimestamps',
+                      'dbData', 'canSyncQuestions'
                     ]);
     }
     
