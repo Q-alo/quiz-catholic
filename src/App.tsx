@@ -36,7 +36,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
-import { FirebaseTest } from './components/FirebaseTest';
 import { IDB } from './services/idbStore';
 import { auth, loginWithGoogle, logout, syncToFirebase, syncFromFirebase, updateUserMetrics, incrementGlobalApiUsage, getGlobalApiUsage } from './services/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -1929,12 +1928,6 @@ const App: React.FC = () => {
                     >
                       Khôi phục mặc định
                     </button>
-                </div>
-                
-                {/* Firebase Connection Test */}
-                <div>
-                   <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block mt-6">Firebase Test</label>
-                   <FirebaseTest />
                 </div>
               </div>
             </motion.div>
