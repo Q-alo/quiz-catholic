@@ -169,8 +169,9 @@ export async function generateQuestions(
         successMessage: result.successMessage
       };
     } catch (error: any) {
-      const msg = error?.message || String(error);
-      if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('500') || msg.includes('fetch')) {
+      const msg = String(error?.message || error || '').toLowerCase();
+      const isRetryable = msg.includes('503') || msg.includes('unavailable') || msg.includes('500') || msg.includes('fetch') || msg.includes('network') || msg.includes('failed') || msg.includes('offline') || msg.includes('connection') || error?.status === 503 || error?.status === 500;
+      if (isRetryable) {
         attempt++;
         
         // Save successfully generated questions
@@ -361,8 +362,9 @@ export async function evaluateAllEssayAnswers(
       }
       return await evaluateAllEssayAnswersInternal(questionsAndAnswers, modelName);
     } catch (error: any) {
-      const msg = error?.message || String(error);
-      if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('500') || msg.includes('fetch')) {
+      const msg = String(error?.message || error || '').toLowerCase();
+      const isRetryable = msg.includes('503') || msg.includes('unavailable') || msg.includes('500') || msg.includes('fetch') || msg.includes('network') || msg.includes('failed') || msg.includes('offline') || msg.includes('connection') || error?.status === 503 || error?.status === 500;
+      if (isRetryable) {
         attempt++;
         if (attempt >= maxRetries) {
           throw error;

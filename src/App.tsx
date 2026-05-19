@@ -688,26 +688,27 @@ const App: React.FC = () => {
   };
 
   const formatApiError = (err: any): string => {
-    const msg = err?.message || String(err);
-    if (msg.includes('API_KEY_INVALID') || msg.includes('401') || msg.includes('unauthorized')) {
+    const msg = String(err?.message || err || '').toLowerCase();
+    if (msg.includes('api_key_invalid') || msg.includes('401') || msg.includes('unauthorized') || err?.status === 401) {
       return "Lỗi API: API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại trong phần Cài đặt.";
     }
-    if (msg.includes('quota')) {
+    if (msg.includes('quota') || msg.includes('exhausted')) {
       return "Lỗi API: Bạn đã hết hạn mức sử dụng (Quota exceeded). Vui lòng kiểm tra lại Google Cloud Console hoặc thử lại sau.";
     }
-    if (msg.includes('429') || msg.includes('limit exceeded')) {
+    if (msg.includes('429') || msg.includes('limit exceeded') || err?.status === 429) {
       return "Lỗi API: Tần suất yêu cầu quá cao (Rate limit exceeded). Vui lòng đợi 1-2 phút rồi thử lại.";
     }
-    if (msg.includes('403') || msg.includes('permission')) {
+    if (msg.includes('403') || msg.includes('permission') || err?.status === 403) {
       return "Lỗi API: Bạn không có quyền truy cập vào Model này. Vui lòng kiểm tra lại quyền của API Key.";
     }
-    if (msg.includes('network') || msg.includes('fetch')) {
+    if (msg.includes('503') || msg.includes('unavailable') || msg.includes('500') || err?.status === 503 || err?.status === 500) {
+      return "Lỗi API (503/500): Máy chủ đang bận xử lý, vui lòng thử lại sau vài giây.";
+    }
+    if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed') || msg.includes('offline') || msg.includes('connection')) {
       return "Lỗi kết nối: Không thể kết nối tới máy chủ AI. Vui lòng kiểm tra mạng của bạn.";
     }
-    if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
-      return "Lỗi API (503): Máy chủ đang bận xử lý, vui lòng thử lại sau vài giây.";
-    }
-    return `Lỗi hệ thống: ${msg}`;
+    
+    return `Lỗi hệ thống: ${err?.message || String(err)}`;
   };
 
   const trackApiUsage = async () => {
