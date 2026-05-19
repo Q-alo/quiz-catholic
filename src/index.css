@@ -182,7 +182,16 @@ textarea:disabled {
   animation-delay: 4s;
 }
 
-/* Reduced Effects Mode */
+/* Hide number input spin buttons */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
 html.reduce-effects .glass-panel,
 html.reduce-effects .backdrop-blur-md {
   backdrop-filter: none !important;

@@ -5,6 +5,9 @@ import {
   BookOpen, 
   CheckCircle2, 
   ChevronRight, 
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   History, 
   PlusCircle, 
   Save, 
@@ -361,7 +364,9 @@ const App: React.FC = () => {
   const [knownQuestions, setKnownQuestions] = useState<Question[]>([]); // "Đã biết" questions (Known)
   const [savedPage, setSavedPage] = useState(1);
   const [knownPage, setKnownPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const [savedPageInput, setSavedPageInput] = useState('1');
+  const [knownPageInput, setKnownPageInput] = useState('1');
+  const ITEMS_PER_PAGE = 10;
   const [expandedExplanations, setExpandedExplanations] = useState<Record<number, boolean>>({});
 
   const [isAutoTTS, setIsAutoTTS] = useState<boolean>(false);
@@ -385,6 +390,14 @@ const App: React.FC = () => {
       stopAudio();
     }
   }, [isAutoTTS, isAppLoaded]);
+
+  useEffect(() => {
+    setSavedPageInput(savedPage.toString());
+  }, [savedPage]);
+
+  useEffect(() => {
+    setKnownPageInput(knownPage.toString());
+  }, [knownPage]);
 
   useEffect(() => {
     if (isAppLoaded) IDB.setItem('ttsVoice', ttsVoice);
@@ -2768,7 +2781,7 @@ const App: React.FC = () => {
                           </button>
                         </div>
                       )}
-                      <div className={`overflow-y-auto no-scrollbar pr-2 max-h-[400px] ${savedQuestions.length > 0 ? 'mt-4' : 'mt-8'}`}>
+                      <div id="saved-list-scroll" className={`overflow-y-auto no-scrollbar pr-2 max-h-[400px] ${savedQuestions.length > 0 ? 'mt-4' : 'mt-8'}`}>
                         {savedQuestions.length === 0 ? (
                           <div className="text-center py-8">
                             <p className="text-sm italic text-outline">Chưa có câu hỏi nào trong kho 'Chưa biết'.</p>
@@ -2790,7 +2803,7 @@ const App: React.FC = () => {
                                   className="group relative bg-surface-container-low/50 backdrop-blur-md p-5 rounded-xl text-sm hover:!bg-orange-100 transition-all border border-transparent active:scale-95 active:shadow-inner shadow-sm cursor-pointer"
                                 >
                                   <div className="font-bold text-on-surface line-clamp-2 mb-3 leading-snug flex gap-1">
-                                    <span>{index + 1}.</span>
+                                    <span>{(savedPage - 1) * ITEMS_PER_PAGE + index + 1}.</span>
                                     <ReactMarkdown components={{ p: 'span' }}>{q.question}</ReactMarkdown>
                                   </div>
                                   <div className="flex justify-between items-center text-[11px] uppercase tracking-widest font-bold text-outline">
@@ -2824,20 +2837,76 @@ const App: React.FC = () => {
                           </AnimatePresence>
                         )}
                         {savedQuestions.length > ITEMS_PER_PAGE && (
-                          <div className="flex flex-wrap justify-center gap-2 mt-4 pt-4 border-t border-outline-variant/30 pb-2">
-                            {Array.from({ length: totalSavedPages }, (_, i) => i + 1).map((page) => (
-                              <button
-                                key={page}
-                                onClick={(e) => { e.stopPropagation(); setSavedPage(page); }}
-                                className={`min-w-8 h-8 px-2 rounded-full text-[11px] font-bold transition-all border active:scale-95 ${
-                                  savedPage === page 
-                                    ? 'bg-orange-500 text-white border-orange-500 shadow-md transform scale-110' 
-                                    : 'bg-surface-container text-outline border-outline-variant/30 hover:bg-surface-container-high hover:text-on-surface hover:border-outline'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            ))}
+                          <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-outline-variant/30 pb-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSavedPage(1);
+                                setTimeout(() => document.getElementById('saved-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={savedPage === 1}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Trang đầu"
+                            >
+                              <ChevronsLeft className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSavedPage((p) => Math.max(1, p - 1));
+                                setTimeout(() => document.getElementById('saved-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={savedPage === 1}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="flex items-center gap-1 mx-2 shrink-0 whitespace-nowrap">
+                              <input 
+                                type="number" 
+                                min={1}
+                                max={totalSavedPages}
+                                value={savedPageInput} 
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => setSavedPageInput(e.target.value)}
+                                onBlur={() => {
+                                  let p = parseInt(savedPageInput);
+                                  if (isNaN(p) || p < 1) p = 1;
+                                  if (p > totalSavedPages) p = totalSavedPages;
+                                  setSavedPage(p);
+                                  setSavedPageInput(p.toString());
+                                  setTimeout(() => document.getElementById('saved-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                                className="w-12 text-center bg-transparent border-b-2 border-outline-variant/50 focus:border-primary outline-none text-sm font-bold pb-0.5 shrink-0"
+                              />
+                              <span className="text-sm font-bold uppercase tracking-widest text-outline whitespace-nowrap">/ {totalSavedPages}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSavedPage((p) => Math.min(totalSavedPages, p + 1));
+                                setTimeout(() => document.getElementById('saved-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={savedPage === totalSavedPages}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronRight className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSavedPage(totalSavedPages);
+                                setTimeout(() => document.getElementById('saved-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={savedPage === totalSavedPages}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Trang cuối"
+                            >
+                              <ChevronsRight className="w-5 h-5" />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -2892,7 +2961,7 @@ const App: React.FC = () => {
                           </button>
                         </div>
                       )}
-                      <div className={`overflow-y-auto no-scrollbar pr-2 max-h-[400px] ${knownQuestions.length > 0 ? 'mt-4' : 'mt-8'}`}>
+                      <div id="known-list-scroll" className={`overflow-y-auto no-scrollbar pr-2 max-h-[400px] ${knownQuestions.length > 0 ? 'mt-4' : 'mt-8'}`}>
                         {knownQuestions.length === 0 ? (
                           <div className="text-center py-8">
                             <p className="text-sm italic text-outline">Chưa có câu hỏi nào trong kho 'Đã biết'.</p>
@@ -2914,7 +2983,7 @@ const App: React.FC = () => {
                                   className="group relative bg-surface-container-low/50 backdrop-blur-md p-5 rounded-xl text-sm hover:!bg-green-100 transition-all border border-transparent active:scale-95 active:shadow-inner shadow-sm cursor-pointer"
                                 >
                                   <div className="font-bold text-on-surface line-clamp-2 mb-3 leading-snug flex gap-1">
-                                    <span>{index + 1}.</span>
+                                    <span>{(knownPage - 1) * ITEMS_PER_PAGE + index + 1}.</span>
                                     <ReactMarkdown components={{ p: 'span' }}>{q.question}</ReactMarkdown>
                                   </div>
                                   <div className="flex justify-between items-center text-[11px] uppercase tracking-widest font-bold text-outline">
@@ -2948,20 +3017,76 @@ const App: React.FC = () => {
                           </AnimatePresence>
                         )}
                         {knownQuestions.length > ITEMS_PER_PAGE && (
-                          <div className="flex flex-wrap justify-center gap-2 mt-4 pt-4 border-t border-outline-variant/30 pb-2">
-                            {Array.from({ length: totalKnownPages }, (_, i) => i + 1).map((page) => (
-                              <button
-                                key={page}
-                                onClick={(e) => { e.stopPropagation(); setKnownPage(page); }}
-                                className={`min-w-8 h-8 px-2 rounded-full text-[11px] font-bold transition-all border active:scale-95 ${
-                                  knownPage === page 
-                                    ? 'bg-green-600 text-white border-green-600 shadow-md transform scale-110' 
-                                    : 'bg-surface-container text-outline border-outline-variant/30 hover:bg-surface-container-high hover:text-on-surface hover:border-outline'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            ))}
+                          <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-outline-variant/30 pb-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setKnownPage(1);
+                                setTimeout(() => document.getElementById('known-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={knownPage === 1}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed hidden sm:block"
+                              title="Trang đầu"
+                            >
+                              <ChevronsLeft className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setKnownPage((p) => Math.max(1, p - 1));
+                                setTimeout(() => document.getElementById('known-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={knownPage === 1}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="flex items-center gap-1 mx-2 shrink-0 whitespace-nowrap">
+                              <input 
+                                type="number" 
+                                min={1}
+                                max={totalKnownPages}
+                                value={knownPageInput} 
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => setKnownPageInput(e.target.value)}
+                                onBlur={() => {
+                                  let p = parseInt(knownPageInput);
+                                  if (isNaN(p) || p < 1) p = 1;
+                                  if (p > totalKnownPages) p = totalKnownPages;
+                                  setKnownPage(p);
+                                  setKnownPageInput(p.toString());
+                                  setTimeout(() => document.getElementById('known-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                                className="w-12 text-center bg-transparent border-b-2 border-outline-variant/50 focus:border-primary outline-none text-sm font-bold pb-0.5 shrink-0"
+                              />
+                              <span className="text-sm font-bold uppercase tracking-widest text-outline whitespace-nowrap">/ {totalKnownPages}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setKnownPage((p) => Math.min(totalKnownPages, p + 1));
+                                setTimeout(() => document.getElementById('known-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={knownPage === totalKnownPages}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronRight className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setKnownPage(totalKnownPages);
+                                setTimeout(() => document.getElementById('known-list-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+                              }}
+                              disabled={knownPage === totalKnownPages}
+                              className="p-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed hidden sm:block"
+                              title="Trang cuối"
+                            >
+                              <ChevronsRight className="w-5 h-5" />
+                            </button>
                           </div>
                         )}
                       </div>
