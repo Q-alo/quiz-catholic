@@ -241,7 +241,7 @@ const App: React.FC = () => {
   
   const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false);
   
-  const [reduceEffects, setReduceEffects] = useState<boolean>(false);
+  const [reduceEffects, setReduceEffects] = useState<boolean>(true);
 
   const evaluationRef = useRef<HTMLDivElement>(null);
 
@@ -648,7 +648,7 @@ const App: React.FC = () => {
         const lvl = await IDB.getItem<string>('appLevel');
         if (lvl) setQuizLevel(lvl as QuizLevel);
         const fx = await IDB.getItem<any>('appReduceEffects');
-        if (fx) setReduceEffects(fx === true || fx === 'true');
+        if (fx !== undefined && fx !== null) setReduceEffects(fx === true || fx === 'true');
         const v = await IDB.getItem<string>('ttsVoice');
         if (v) setTtsVoice(v);
         
