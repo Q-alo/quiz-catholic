@@ -1132,7 +1132,7 @@ const App: React.FC = () => {
       });
 
       setTimeout(() => {
-        submitBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        document.getElementById('question-0')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
 
     } catch (err: any) {
