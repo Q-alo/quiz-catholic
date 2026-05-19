@@ -242,6 +242,7 @@ const App: React.FC = () => {
   const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false);
   
   const [reduceEffects, setReduceEffects] = useState<boolean>(true);
+  const [focusedQuestionIndex, setFocusedQuestionIndex] = useState<number | null>(null);
 
   const evaluationRef = useRef<HTMLDivElement>(null);
 
@@ -505,11 +506,15 @@ const App: React.FC = () => {
   useEffect(() => {
     if (quiz.currentQuestion && questionTopRef.current) {
       const timer = setTimeout(() => {
-        questionTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const currentQType = quiz.sessionQuestions?.[0]?.type || questionType;
+        const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
+        if (!isMultiQuestionEssayMode) {
+          questionTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [quiz.currentIndex, quiz.currentQuestion]);
+  }, [quiz.currentIndex, quiz.currentQuestion, isOfflineMode, questionType, quiz.sessionQuestions]);
 
   // Auto-scroll to loading area when starting session
   useEffect(() => {
@@ -1016,6 +1021,15 @@ const App: React.FC = () => {
   const goToQuestion = (index: number) => {
     if (index < 0 || index >= quiz.sessionQuestions.length) return;
     
+    // Smooth scroll for multi-question essay mode
+    const currentQType = quiz.sessionQuestions[0]?.type || questionType;
+    const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
+    if (isMultiQuestionEssayMode) {
+      setTimeout(() => {
+        document.getElementById(`question-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+    
     setQuiz(prev => {
       // Save current answer if not evaluated
       const newAnswers = [...prev.userAnswers];
@@ -1083,6 +1097,50 @@ const App: React.FC = () => {
         isSaved: false,
       };
     });
+  };
+
+  const handleEvaluateAllEssaySubmit = async () => {
+    setQuiz(prev => ({ ...prev, loading: true }));
+    try {
+      const qaList = quiz.sessionQuestions.map((q, idx) => ({
+        question: q.question,
+        correctAnswer: q.correctAnswer,
+        userAnswer: (quiz.userAnswers[idx] || "").trim() === "" ? "Không trả lời" : quiz.userAnswers[idx]
+      }));
+
+      const results = await evaluateAllEssayAnswers(qaList, geminiModel, (attempt) => {
+        setQuiz(prev => ({ ...prev, loadingMsg: `[Thử lại lần ${attempt}] Đang tiến hành chấm điểm tất cả câu hỏi...` }));
+      });
+      await trackApiUsage();
+
+      setQuiz(prev => {
+        const newEvaluatedResults = [...prev.evaluatedResults];
+        const newEssayEvaluations = [...(prev.essayEvaluations || [])];
+
+        results.forEach((result, idx) => {
+          newEvaluatedResults[idx] = result.score >= 5;
+          newEssayEvaluations[idx] = result;
+        });
+
+        return {
+          ...prev,
+          evaluatedResults: newEvaluatedResults,
+          essayEvaluations: newEssayEvaluations,
+          isEvaluated: true,
+          loading: false
+        };
+      });
+
+      setTimeout(() => {
+        submitBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 100);
+
+    } catch (err: any) {
+      setQuiz(prev => ({ ...prev, loading: false, error: "Đánh giá thất bại: " + formatApiError(err) }));
+      setTimeout(() => {
+        document.getElementById('error-msg')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
   };
 
   const handleAnswerSubmit = async () => {
@@ -1302,6 +1360,37 @@ const App: React.FC = () => {
 
     const newSavedQuestions = [questionToSave, ...savedQuestions];
     saveToLocalStorage(newSavedQuestions);
+  };
+
+  const saveToKnownEssayQuestion = (idx: number) => {
+    const question = quiz.sessionQuestions[idx];
+    if (!question) return;
+
+    const isKnown = knownQuestions.some(kq => kq.question === question.question && kq.topic === question.topic);
+
+    if (isKnown) {
+      const newKnownQuestions = knownQuestions.filter(kq => 
+        kq.question !== question.question || kq.topic !== question.topic
+      );
+      saveKnownToLocalStorage(newKnownQuestions);
+      return;
+    }
+
+    const questionToSave = {
+      ...question,
+      id: Date.now().toString() + idx,
+      savedAt: new Date().toISOString()
+    };
+    delete questionToSave.isNew;
+
+    // Remove from saved (unknown) if it exists there
+    const newSavedQuestions = savedQuestions.filter(sq => 
+      sq.question !== questionToSave.question || sq.topic !== questionToSave.topic
+    );
+    saveToLocalStorage(newSavedQuestions);
+
+    const newKnownQuestions = [questionToSave, ...knownQuestions];
+    saveKnownToLocalStorage(newKnownQuestions);
   };
 
   const saveEssayToKnown = (idx: number) => {
@@ -2223,7 +2312,7 @@ const App: React.FC = () => {
                 const isGenerating = idx >= quiz.sessionQuestions.length;
                 const isAnswered = !!quiz.userAnswers[idx]?.trim();
                 const evaluationResult = quiz.evaluatedResults[idx];
-                const isCurrent = idx === quiz.currentIndex;
+                const isCurrent = focusedQuestionIndex !== null ? idx === focusedQuestionIndex : idx === quiz.currentIndex;
                 
                 let bgColor = "bg-outline-variant/30";
                 if (isGenerating) bgColor = "bg-tertiary/30 animate-pulse";
@@ -2983,7 +3072,7 @@ const App: React.FC = () => {
                 </motion.div>
               ) : (
                 <motion.div 
-                  key={quiz.currentQuestion.question}
+                  key={!isOfflineMode && (quiz.currentQuestion.type === 'short-essay' || quiz.currentQuestion.type === 'long-essay' || questionType === 'short-essay' || questionType === 'long-essay') ? 'multi-essay' : quiz.currentQuestion.question}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
@@ -2997,6 +3086,142 @@ const App: React.FC = () => {
                     
                     const resolvedType = hasOptions ? (isMultiSelect ? 'multiple-select' : 'multiple-choice') : (quiz.currentQuestion.type || questionType);
                     const currentQType = resolvedType;
+                    const isMultiQuestionEssayMode = !isOfflineMode && (currentQType === 'short-essay' || currentQType === 'long-essay');
+
+                    if (isMultiQuestionEssayMode) {
+                      return (
+                        <div className="space-y-12 pb-8">
+                          {quiz.sessionQuestions.map((q, idx) => {
+                            const essayResult = quiz.essayEvaluations?.[idx];
+                            const isExcellent = essayResult && essayResult.score >= 8;
+                            return (
+                              <div key={idx} id={`question-${idx}`} className="border-b border-outline-variant/20 pb-12 last:border-0 last:pb-0">
+                                <div className="flex justify-between items-start mb-6 gap-4 flex-col sm:flex-row">
+                                  <span className={`px-4 py-1.5 rounded-full text-[11px] uppercase tracking-widest font-bold shadow-sm ${
+                                    q.isNew ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary'
+                                  }`}>
+                                    {q.isNew ? 'Câu hỏi mới' : 'Câu hỏi cũ'}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-outline uppercase tracking-widest sm:text-right">Câu {idx + 1} - {q.topic}</span>
+                                </div>
+                                
+                                <div className="text-xl md:text-2xl font-bold leading-relaxed mb-8 text-on-surface">
+                                  <ReactMarkdown>{q.question}</ReactMarkdown>
+                                </div>
+                                
+                                <EssayTextArea
+                                  disabled={quiz.isEvaluated || quiz.loading}
+                                  value={quiz.userAnswers[idx] || ""}
+                                  onBlur={() => setFocusedQuestionIndex(null)}
+                                  onFocus={() => setFocusedQuestionIndex(idx)}
+                                  onChange={(val) => {
+                                    setQuiz(prev => {
+                                      const newAnswers = [...prev.userAnswers];
+                                      newAnswers[idx] = val;
+                                      return { ...prev, userAnswers: newAnswers };
+                                    });
+                                  }}
+                                  placeholder="Nhập câu trả lời của bạn tại đây..."
+                                  className="w-full h-40 bg-surface-container-low/50 backdrop-blur-md border-2 border-transparent focus:border-primary/20 rounded-2xl p-6 text-base focus:ring-4 focus:ring-primary/5 outline-none resize-none shadow-inner text-on-surface"
+                                />
+                                
+                                {/* Evaluation Result */}
+                                {quiz.isEvaluated && essayResult && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`mt-6 p-6 rounded-2xl border-2 shadow-sm ${isExcellent ? 'bg-green-50/80 border-green-500/20 text-green-900' : 'bg-surface-container-low/50 backdrop-blur-md border-primary/20 text-on-surface'}`}
+                                  >
+                                    <h4 className="font-bold flex items-center gap-2 mb-3 border-b border-primary/10 pb-3">
+                                      <CheckCircle2 className={`w-5 h-5 ${isExcellent ? 'text-green-600' : 'text-primary'}`} />
+                                      {isExcellent ? `Chính xác xuất sắc! (Điểm: ${essayResult.score}/10)` : `Chấm điểm: ${essayResult.score}/10`}
+                                    </h4>
+                                    <div className="prose prose-sm dark:prose-invert max-w-none text-balance opacity-90 text-[15px] leading-relaxed relative z-10">
+                                      <ReactMarkdown>{essayResult.feedback}</ReactMarkdown>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-primary/10">
+                                      <span className="text-xs uppercase tracking-widest font-bold opacity-60 mb-2 block">Đáp án gợi ý</span>
+                                      <div className="prose prose-sm dark:prose-invert max-w-none opacity-80 italic">
+                                        <ReactMarkdown>{q.correctAnswer}</ReactMarkdown>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="mt-6 flex flex-col sm:flex-row gap-4 border-t border-primary/10 pt-6">
+                                      {(() => {
+                                        const isSaved = savedQuestions.some(sq => sq.question === q.question && sq.topic === q.topic);
+                                        const isKnown = knownQuestions.some(kq => kq.question === q.question && kq.topic === q.topic);
+                                        return (
+                                          <>
+                                            {!isKnown && (
+                                              <button
+                                                onClick={() => saveEssayQuestion(idx)}
+                                                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm ${
+                                                  isSaved 
+                                                    ? "bg-orange-100 border-orange-200 text-orange-900 shadow-inner" 
+                                                    : "border-orange-500/30 text-orange-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-500/50 active:bg-orange-100"
+                                                }`}
+                                              >
+                                                <Save className="w-5 h-5" />
+                                                {isSaved ? "Chưa biết ✓" : "Lưu vào Chưa biết"}
+                                              </button>
+                                            )}
+                                            {!isSaved && (
+                                              <button
+                                                onClick={() => saveToKnownEssayQuestion(idx)}
+                                                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm ${
+                                                  isKnown 
+                                                    ? "bg-green-100 border-green-200 text-green-900 shadow-inner" 
+                                                    : "border-green-500/30 text-green-600 hover:bg-green-50 hover:text-green-700 hover:border-green-500/50 active:bg-green-100"
+                                                }`}
+                                              >
+                                                <CheckCircle2 className="w-5 h-5" />
+                                                {isKnown ? "Đã biết ✓" : "Lưu vào Đã biết"}
+                                              </button>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Submit all button */}
+                          <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-8 border-t border-outline-variant/20">
+                            <button
+                              ref={submitBtnRef}
+                              onClick={quiz.isEvaluated ? finishQuiz : handleEvaluateAllEssaySubmit}
+                              disabled={quiz.loading}
+                              className={`w-full py-4 md:py-6 rounded-2xl font-bold text-lg md:text-xl transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-3 ${
+                                quiz.isEvaluated 
+                                  ? "bg-green-600 text-white hover:bg-green-700 hover:shadow-green-500/20" 
+                                  : "bg-primary text-on-primary hover:bg-primary/90 hover:shadow-primary/20"
+                              }`}
+                            >
+                              {quiz.loading ? (
+                                <>
+                                  <RefreshCw className="w-6 h-6 animate-spin" />
+                                  Đang chấm điểm...
+                                </>
+                              ) : quiz.isEvaluated ? (
+                                <>
+                                  <CheckCircle2 className="w-6 h-6" />
+                                  Đã hoàn thành
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-6 h-6" />
+                                  Hoàn thành & Chấm điểm
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <>
                         <div className="flex justify-between items-start mb-6 lg:mb-10 gap-4 flex-col sm:flex-row">
@@ -3020,8 +3245,8 @@ const App: React.FC = () => {
                             <EssayTextArea
                               disabled={quiz.isEvaluated}
                               value={quiz.userAnswer}
-                              onBlur={() => {}}
-                              onFocus={() => {}}
+                              onBlur={() => setFocusedQuestionIndex(null)}
+                              onFocus={() => setFocusedQuestionIndex(quiz.currentIndex)}
                               onChange={(val) => {
                                 setQuiz(prev => ({ ...prev, userAnswer: val }));
                               }}
@@ -3133,110 +3358,109 @@ const App: React.FC = () => {
                         )}
 
 
+                        <div className="flex flex-col gap-5">
+                          <div className="flex flex-col sm:flex-row gap-5">
+                            {!quiz.isEvaluated ? (
+                              <button
+                                ref={submitBtnRef}
+                                onClick={handleAnswerSubmit}
+                                disabled={(!quiz.userAnswer && !(
+                                  (quiz.currentQuestion?.options == null || quiz.currentQuestion.options.length === 0) &&
+                                  (quiz.currentQuestion?.type === 'short-essay' || quiz.currentQuestion?.type === 'long-essay' || questionType === 'short-essay' || questionType === 'long-essay')
+                                )) || quiz.loading}
+                                className="flex-1 bg-primary text-on-primary shadow-lg py-4 md:py-6 rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:neon-glow-none text-sm md:text-base relative overflow-hidden"
+                              >
+                                <div className="relative flex items-center justify-center gap-3 w-full">
+                                  {quiz.loading ? <RefreshCw className="w-7 h-7 animate-spin" /> : <CheckCircle2 className="w-7 h-7" />}
+                                  Kiểm tra đáp án
+                                </div>
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => getNextQuestion()}
+                                  disabled={quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount}
+                                  className="flex-1 bg-primary text-on-primary shadow-lg py-4 md:py-6 rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-sm md:text-base disabled:opacity-50 disabled:hover:scale-100 relative overflow-hidden"
+                                >
+                                  <div className="relative flex items-center justify-center gap-3 w-full">
+                                    {quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount ? (
+                                      <>
+                                        <RefreshCw className="w-7 h-7 animate-spin" />
+                                        Đang tạo câu tiếp theo...
+                                      </>
+                                    ) : quiz.currentIndex + 1 >= quiz.targetQuestionCount ? (
+                                      <>
+                                        <CheckCircle2 className="w-7 h-7" />
+                                        Hoàn thành
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronRight className="w-7 h-7" />
+                                        Câu hỏi tiếp theo
+                                      </>
+                                    )}
+                                  </div>
+                                </button>
+                                
+                                {!isCurrentQuestionKnown && (
+                                  <button
+                                    onClick={saveQuestion}
+                                    className={`flex-1 py-4 md:py-6 rounded-2xl border-2 font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-sm md:text-base ${
+                                      isCurrentQuestionSaved 
+                                        ? "bg-orange-100 border-orange-200 text-orange-900 shadow-inner" 
+                                        : "border-orange-500/30 text-orange-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-500/50 active:bg-orange-100"
+                                    }`}
+                                  >
+                                    <Save className="w-6 h-6" />
+                                    {isCurrentQuestionSaved ? "Chưa biết ✓" : "Lưu vào Chưa biết"}
+                                  </button>
+                                )}
+
+                                {!isCurrentQuestionSaved && (
+                                  <button
+                                    onClick={saveToKnown}
+                                    className={`flex-1 py-4 md:py-6 rounded-2xl border-2 font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-sm md:text-base ${
+                                      isCurrentQuestionKnown 
+                                        ? "bg-green-100 border-green-200 text-green-900 shadow-inner" 
+                                        : "border-green-500/30 text-green-600 hover:bg-green-50 hover:text-green-700 hover:border-green-500/50 active:bg-green-100"
+                                    }`}
+                                  >
+                                    <CheckCircle2 className="w-6 h-6" />
+                                    {isCurrentQuestionKnown ? "Đã biết ✓" : "Lưu vào Đã biết"}
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+
+                          {/* Navigation Buttons */}
+                          {!quiz.isEvaluated && (
+                            <div className="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+                              <button
+                                onClick={getPreviousQuestion}
+                                disabled={quiz.currentIndex === 0 || quiz.loading}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-primary hover:bg-primary/5 active:scale-95 active:bg-primary/10 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:bg-transparent"
+                              >
+                                <ChevronRight className="w-5 h-5 rotate-180" />
+                                Câu trước
+                              </button>
+                              <div className="text-sm font-bold text-outline">
+                                {quiz.currentIndex + 1} / {quiz.targetQuestionCount || quiz.sessionQuestions.length}
+                              </div>
+                              <button
+                                onClick={getNextQuestion}
+                                disabled={quiz.currentIndex === (quiz.targetQuestionCount || quiz.sessionQuestions.length) - 1 || (quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount)}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-primary hover:bg-primary/5 active:scale-95 active:bg-primary/10 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:bg-transparent"
+                              >
+                                {quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount ? "Đang tạo..." : "Câu sau"}
+                                <ChevronRight className="w-5 h-5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </>
                     );
                   })()}
-
-                  <div className="flex flex-col gap-5">
-                    <div className="flex flex-col sm:flex-row gap-5">
-                      {!quiz.isEvaluated ? (
-                        <button
-                          ref={submitBtnRef}
-                          onClick={handleAnswerSubmit}
-                          disabled={(!quiz.userAnswer && !(
-                            (quiz.currentQuestion?.options == null || quiz.currentQuestion.options.length === 0) &&
-                            (quiz.currentQuestion?.type === 'short-essay' || quiz.currentQuestion?.type === 'long-essay' || questionType === 'short-essay' || questionType === 'long-essay')
-                          )) || quiz.loading}
-                          className="flex-1 bg-primary text-on-primary shadow-lg py-4 md:py-6 rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:neon-glow-none text-sm md:text-base relative overflow-hidden"
-                        >
-                          <div className="relative flex items-center justify-center gap-3 w-full">
-                            {quiz.loading ? <RefreshCw className="w-7 h-7 animate-spin" /> : <CheckCircle2 className="w-7 h-7" />}
-                            Kiểm tra đáp án
-                          </div>
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => getNextQuestion()}
-                            disabled={quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount}
-                            className="flex-1 bg-primary text-on-primary shadow-lg py-4 md:py-6 rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-sm md:text-base disabled:opacity-50 disabled:hover:scale-100 relative overflow-hidden"
-                          >
-                            <div className="relative flex items-center justify-center gap-3 w-full">
-                              {quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount ? (
-                                <>
-                                  <RefreshCw className="w-7 h-7 animate-spin" />
-                                  Đang tạo câu tiếp theo...
-                                </>
-                              ) : quiz.currentIndex + 1 >= quiz.targetQuestionCount ? (
-                                <>
-                                  <CheckCircle2 className="w-7 h-7" />
-                                  Hoàn thành
-                                </>
-                              ) : (
-                                <>
-                                  <ChevronRight className="w-7 h-7" />
-                                  Câu hỏi tiếp theo
-                                </>
-                              )}
-                            </div>
-                          </button>
-                          
-                          {!isCurrentQuestionKnown && (
-                            <button
-                              onClick={saveQuestion}
-                              className={`flex-1 py-4 md:py-6 rounded-2xl border-2 font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-sm md:text-base ${
-                                isCurrentQuestionSaved 
-                                  ? "bg-orange-100 border-orange-200 text-orange-900 shadow-inner" 
-                                  : "border-orange-500/30 text-orange-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-500/50 active:bg-orange-100"
-                              }`}
-                            >
-                              <Save className="w-6 h-6" />
-                              {isCurrentQuestionSaved ? "Chưa biết ✓" : "Lưu vào Chưa biết"}
-                            </button>
-                          )}
-
-                          {!isCurrentQuestionSaved && (
-                            <button
-                              onClick={saveToKnown}
-                              className={`flex-1 py-4 md:py-6 rounded-2xl border-2 font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-sm md:text-base ${
-                                isCurrentQuestionKnown 
-                                  ? "bg-green-100 border-green-200 text-green-900 shadow-inner" 
-                                  : "border-green-500/30 text-green-600 hover:bg-green-50 hover:text-green-700 hover:border-green-500/50 active:bg-green-100"
-                              }`}
-                            >
-                              <CheckCircle2 className="w-6 h-6" />
-                              {isCurrentQuestionKnown ? "Đã biết ✓" : "Lưu vào Đã biết"}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Navigation Buttons */}
-                    {!quiz.isEvaluated && (
-                      <div className="flex justify-between items-center pt-4 border-t border-outline-variant/10">
-                        <button
-                          onClick={getPreviousQuestion}
-                          disabled={quiz.currentIndex === 0 || quiz.loading}
-                          className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-primary hover:bg-primary/5 active:scale-95 active:bg-primary/10 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:bg-transparent"
-                        >
-                          <ChevronRight className="w-5 h-5 rotate-180" />
-                          Câu trước
-                        </button>
-                        <div className="text-sm font-bold text-outline">
-                          {quiz.currentIndex + 1} / {quiz.targetQuestionCount || quiz.sessionQuestions.length}
-                        </div>
-                        <button
-                          onClick={getNextQuestion}
-                          disabled={quiz.currentIndex === (quiz.targetQuestionCount || quiz.sessionQuestions.length) - 1 || (quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount)}
-                          className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-primary hover:bg-primary/5 active:scale-95 active:bg-primary/10 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100 disabled:active:bg-transparent"
-                        >
-                          {quiz.currentIndex + 1 >= quiz.sessionQuestions.length && quiz.sessionQuestions.length < quiz.targetQuestionCount ? "Đang tạo..." : "Câu sau"}
-                          <ChevronRight className="w-5 h-5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
                   
                   {quiz.error && (
                     <p id="error-msg" className="mt-6 text-error font-bold text-sm flex items-center gap-2 bg-error-container text-on-error-container p-4 rounded-xl">
