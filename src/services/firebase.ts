@@ -174,7 +174,9 @@ export const incrementGlobalApiUsage = async (model: string, amount: number = 1)
   try {
     const today = new Date().toISOString().split('T')[0];
     const docRef = doc(db, 'stats', `apiUsage_${today}`);
-    const key = model === "gemini-3.1-flash-lite-preview" ? "flash_lite" : "flash";
+    let key = "flash";
+    if (model === "gemini-3.1-flash-lite-preview" || model === "gemini-3.1-flash-lite") key = "flash_lite";
+    else if (model === "gemini-3.5-flash-preview" || model === "gemini-3.5-flash") key = "flash_3_5";
     await setDoc(docRef, { [key]: increment(amount) }, { merge: true });
   } catch (error) {
     console.error("Error incrementing global API usage", error);
@@ -182,7 +184,7 @@ export const incrementGlobalApiUsage = async (model: string, amount: number = 1)
 };
 
 export const getGlobalApiUsage = async () => {
-  if (!db) return { flash_lite: 0, flash: 0 };
+  if (!db) return { flash_lite: 0, flash: 0, flash_3_5: 0 };
   try {
     const today = new Date().toISOString().split('T')[0];
     const docRef = doc(db, 'stats', `apiUsage_${today}`);
@@ -193,7 +195,7 @@ export const getGlobalApiUsage = async () => {
   } catch (error) {
     console.error("Error getting global API usage", error);
   }
-  return { flash_lite: 0, flash: 0 };
+  return { flash_lite: 0, flash: 0, flash_3_5: 0 };
 };
 
 // Restore from Firebase

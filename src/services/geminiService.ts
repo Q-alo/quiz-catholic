@@ -136,7 +136,7 @@ export async function generateQuestions(
   knownQuestions: Question[] = [],
   onProgress?: (count: number, attempt?: number) => void,
   onPartialQuestions?: (questions: Question[]) => void,
-  modelName: string = "gemini-3.1-flash-lite-preview"
+  modelName: string = "gemini-3.1-flash-lite"
 ): Promise<{ questions: Question[], successMessage: string }> {
   let attempt = 0;
   const maxRetries = 5;
@@ -211,7 +211,7 @@ async function generateQuestionsInternal(
   knownQuestions: Question[] = [],
   onProgress?: (count: number) => void,
   onPartialQuestions?: (questions: Question[]) => void,
-  modelName: string = "gemini-3.1-flash-lite-preview"
+  modelName: string = "gemini-3.1-flash-lite"
 ): Promise<{ questions: Question[], successMessage: string }> {
   const model = modelName;
   
@@ -349,7 +349,7 @@ Yêu cầu:
 
 export async function evaluateAllEssayAnswers(
   questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[],
-  modelName: string = "gemini-3.1-flash-lite-preview",
+  modelName: string = "gemini-3.1-flash-lite",
   onRetry?: (attempt: number) => void
 ): Promise<{ score: number; feedback: string }[]> {
   let attempt = 0;
@@ -380,7 +380,7 @@ export async function evaluateAllEssayAnswers(
 
 async function evaluateAllEssayAnswersInternal(
   questionsAndAnswers: { question: string; correctAnswer: string; userAnswer: string }[],
-  modelName: string = "gemini-3.1-flash-lite-preview"
+  modelName: string = "gemini-3.1-flash-lite"
 ): Promise<{ score: number; feedback: string }[]> {
   const model = modelName;
   

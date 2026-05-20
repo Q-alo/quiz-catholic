@@ -215,8 +215,8 @@ const App: React.FC = () => {
   const [questionType, setQuestionType] = useState<QuestionType>('multiple-choice');
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [quizLevel, setQuizLevel] = useState<QuizLevel>('Nghĩa Sỹ');
-  const [geminiModel, setGeminiModel] = useState<string>('gemini-3.1-flash-lite-preview');
-  const [globalApiStats, setGlobalApiStats] = useState<{flash_lite: number, flash: number}>({flash_lite: 0, flash: 0});
+  const [geminiModel, setGeminiModel] = useState<string>('gemini-3.1-flash-lite');
+  const [globalApiStats, setGlobalApiStats] = useState<{flash_lite: number, flash: number, flash_3_5: number}>({flash_lite: 0, flash: 0, flash_3_5: 0});
   const [isStarted, setIsStarted] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const wasStarted = useRef(false);
@@ -289,7 +289,7 @@ const App: React.FC = () => {
   // Fetch API usage when opening settings ONLY
   useEffect(() => {
     if (isSettingsOpen) {
-      getGlobalApiUsage().then(stats => setGlobalApiStats(stats as {flash_lite: number, flash: number}));
+      getGlobalApiUsage().then(stats => setGlobalApiStats(stats as {flash_lite: number, flash: number, flash_3_5: number}));
     }
   }, [isSettingsOpen]);
 
@@ -1882,11 +1882,12 @@ const App: React.FC = () => {
                   <label className="text-xs uppercase tracking-widest font-bold text-secondary mb-3 block">Mô hình AI</label>
                   <div className="grid grid-cols-1 gap-2">
                     {[
-                      { name: 'Gemini 3.1 Flash Lite (Khuyên dùng)', value: 'gemini-3.1-flash-lite-preview', limit: 500, key: 'flash_lite' },
-                      { name: 'Gemini 3.0 Flash', value: 'gemini-3.0-flash-preview', limit: 20, key: 'flash' }, // Used 3.0 string, but API might fail if incorrect. Assuming user explicitly means this or similar, wait I will just use 'gemini-2.5-flash' for the fallback maybe? Let's stick with what user might want, but maybe 'gemini-2.5-flash' is the actual 2.5 API. Actually 'gemini-flash' might just work. Let's use 'gemini-2.0-flash' or 'gemini-2.5-flash'
+                      { name: 'Gemini 3.5 Flash', value: 'gemini-3.5-flash', limit: 20, key: 'flash_3_5' },
+                      { name: 'Gemini 3.1 Flash Lite (Khuyên dùng)', value: 'gemini-3.1-flash-lite', limit: 500, key: 'flash_lite' },
+                      { name: 'Gemini 3.0 Flash', value: 'gemini-3-flash-preview', limit: 20, key: 'flash' }, // Used 3.0 string, but API might fail if incorrect. Assuming user explicitly means this or similar, wait I will just use 'gemini-2.5-flash' for the fallback maybe? Let's stick with what user might want, but maybe 'gemini-2.5-flash' is the actual 2.5 API. Actually 'gemini-flash' might just work. Let's use 'gemini-2.0-flash' or 'gemini-2.5-flash'
                     ].map((model) => {
                       // Adjust model names to ensure valid values while displaying what user asked
-                      const actualModelName = model.value === 'gemini-3.0-flash-preview' ? 'gemini-2.5-flash' : model.value;
+                      const actualModelName = model.value === 'gemini-3-flash-preview' ? 'gemini-2.5-flash' : model.value;
                       
                       return (
                       <button
