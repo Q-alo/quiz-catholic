@@ -35,7 +35,19 @@
       "type": "object",
       "properties": {
         "flash_lite": { "type": "number" },
-        "flash": { "type": "number" }
+        "flash": { "type": "number" },
+        "flash_3_5": { "type": "number" },
+        "callLogs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "time": { "type": "string" },
+              "email": { "type": "string" },
+              "model": { "type": "string" }
+            }
+          }
+        }
       }
     }
   },

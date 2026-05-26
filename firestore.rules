@@ -59,7 +59,9 @@ service cloud.firestore {
       allow create, update: if isSignedIn() 
                             && isValidId(docId)
                             && (!('flash_lite' in incoming()) || incoming().flash_lite is number)
-                            && (!('flash' in incoming()) || incoming().flash is number);
+                            && (!('flash' in incoming()) || incoming().flash is number)
+                            && (!('flash_3_5' in incoming()) || incoming().flash_3_5 is number)
+                            && (!('callLogs' in incoming()) || incoming().callLogs is list);
     }
   }
 }
