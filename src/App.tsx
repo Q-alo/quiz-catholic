@@ -527,7 +527,7 @@ const App: React.FC = () => {
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [quiz.currentIndex, quiz.currentQuestion, isOfflineMode, questionType, quiz.sessionQuestions]);
+  }, [quiz.currentIndex, quiz.currentQuestion, isOfflineMode, questionType]);
 
   // Auto-scroll to loading area when starting session
   useEffect(() => {
